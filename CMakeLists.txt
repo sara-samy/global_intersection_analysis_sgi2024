@@ -28,29 +28,24 @@ FetchContent_MakeAvailable(ipc_toolkit)
 message("\n\n == CMAKE recursively building Polyscope\n")
 add_subdirectory("deps/polyscope")
 
-# Find Eigen
-message("\n\n == CMAKE looking for Eigen\n")
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-
 # Add the executable for your project
-add_executable(gc_project src/main.cpp)
-
-# Include directories
-target_include_directories(gc_project PUBLIC ${ipc_toolkit_SOURCE_DIR}/include)
-# Include settings
-target_include_directories(gc_project PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/libigl/include")
+add_executable(${PROJECT_NAME} src/main.cpp)
 
 # Link against Polyscope
-target_link_libraries(gc_project polyscope)
-# Link against Eigen
-target_link_libraries(gc_project Eigen3::Eigen)
+target_link_libraries(${PROJECT_NAME} PUBLIC polyscope)
 # Link against IPC-Toolkit
-target_link_libraries(gc_project ipc::toolkit)
+target_link_libraries(${PROJECT_NAME} PUBLIC ipc::toolkit)
+
+# Include directories 
+target_include_directories(${PROJECT_NAME} PUBLIC 
+    ${ipc_toolkit_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/include
+)
 
 # Add any other configurations you need
 # Example: Set specific compiler options
 if(MSVC)
-    target_compile_options(gc_project PRIVATE /W4 /WX)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
 else()
-    target_compile_options(gc_project PRIVATE -w)
+    target_compile_options(${PROJECT_NAME} PRIVATE -w)
 endif()
