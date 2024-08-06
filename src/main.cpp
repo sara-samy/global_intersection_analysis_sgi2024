@@ -62,11 +62,19 @@ int main(int argc, char **argv) {
     Eigen::MatrixXi meshF;  // F x 3
     Eigen::MatrixXi meshFc;
 
+    std::string baseDir = "../data/";
+
+    std::string meshfilename1 = "sphere3.obj";
+    std::string meshfilename2 = "cloth.obj";
+
+    // Concatenate the base directory path and the filename
+    std::string mesh1Path = baseDir + meshfilename1;
+	std::string mesh2Path = baseDir + meshfilename2;
     // Read the first mesh
-    igl::readOBJ("sphere3.obj", meshV, meshF);
+    igl::readOBJ(mesh1Path, meshV, meshF);
 
     // Read the second mesh
-    igl::readOBJ("cloth.obj", meshVc, meshFc);
+    igl::readOBJ(mesh2Path, meshVc, meshFc);
 
 #if __APPLE__
     
