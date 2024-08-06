@@ -24,9 +24,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(ipc_toolkit)
 
-# Add polyscope
-message("\n\n == CMAKE recursively building Polyscope\n")
-add_subdirectory("deps/polyscope")
+FetchContent_Declare(
+    polyscope
+    GIT_REPOSITORY https://github.com/nmwsharp/polyscope.git
+    GIT_TAG v2.2.1  # Replace with the desired version tag
+)
+FetchContent_MakeAvailable(polyscope)
 
 # Add the executable for your project
 add_executable(${PROJECT_NAME} src/main.cpp)
@@ -39,13 +42,13 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ipc::toolkit)
 # Include directories 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${ipc_toolkit_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/include
+    ${polyscope_SOURCE_DIR}/include
 )
 
 # Add any other configurations you need
 # Example: Set specific compiler options
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -w)
 endif()
