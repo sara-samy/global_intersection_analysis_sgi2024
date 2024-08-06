@@ -12,6 +12,7 @@
 #include "polyscope/surface_mesh.h"
 #include <polyscope/polyscope.h>
 
+#include "ipc/broad_phase/bvh.hpp"
 #include "ipc/distance/edge_edge.hpp"
 #include "ipc/utils/intersection.hpp"
 
@@ -233,20 +234,67 @@ int main(int argc, char **argv) {
   //get mesh edges
   Eigen::MatrixXi meshE;
 
+
+	std::vector<ipc::EdgeEdgeCandidate> edge_edge_candidates;
     igl::edges(meshF, meshE);
 
+    Eigen::MatrixXd allVertices(meshV.rows() + intersectingVertices.rows(), 3);
+    allVertices << meshV, intersectingVertices;
 
+    Eigen::MatrixXi allEdges(meshE.rows() + contourEdges.rows(), 2);
+
+    Eigen::MatrixXi indexshiftedContourEdges(contourEdges.rows(),2);
+    indexshiftedContourEdges << contourEdges;
+    indexshiftedContourEdges = indexshiftedContourEdges.rowwise() + Eigen::Vector2i(meshV.rows(), meshV.rows()).transpose();
+
+    allVertices << meshV, intersectingVertices;
+    allEdges << meshE, indexshiftedContourEdges;
+    
+
+    ipc::BVH bvh;
+    bvh.build(allVertices, allEdges, meshF);
+    bvh.detect_edge_edge_candidates(edge_edge_candidates);
+
+    
+    
     
   // get the flood fill
   //precompute step
     // find intersecting edges with a contour
     // for now do for a single contour
     //later- multiple contours
-
+    Eigen::MatrixXd contourIntersectingEdges(0,2);
     //take each edge, compare to each contour edge
 	
+    
+   
 
+    for(auto candidate:edge_edge_candidates)
+    {
 
+        Eigen::Vector3d a = allVertices.row(allEdges(candidate.edge0_id, 0));
+    	Eigen::Vector3d b = allVertices.row(allEdges(candidate.edge0_id, 1));
+    	Eigen::Vector3d c = allVertices.row(allEdges(candidate.edge1_id, 0));
+    	Eigen::Vector3d d = allVertices.row(allEdges(candidate.edge1_id, 1));
+
+         
+         if(ipc::edge_edge_distance(a, b, c, d)<0.00001)
+         {
+            
+             if (allEdges(candidate.edge0_id, 0) < meshV.rows())
+             {
+                 int k = contourIntersectingEdges.rows();
+                 contourIntersectingEdges.conservativeResize(k + 1, 2);
+                 contourIntersectingEdges(k, 0) = allEdges(candidate.edge0_id, 0);
+                 //if (allEdges(candidate.edge0_id, 1) < meshV.rows())
+                 contourIntersectingEdges(k, 1) = allEdges(candidate.edge0_id, 1);
+             }
+             //contourIntersectingEdges(k+1, 0) = allEdges(candidate.edge1_id, 0);
+             //contourIntersectingEdges(k+1, 1) = allEdges(candidate.edge1_id, 1);
+
+         }
+    }
+   
     //pick an arbitrary point
     //color it
     //pick all points next to current point
@@ -280,7 +328,9 @@ int main(int argc, char **argv) {
 
   polyscope::registerPointCloud("points", intersectingVertices);
 
-  polyscope::registerCurveNetwork("contour", meshV, meshE);
+  polyscope::registerCurveNetwork("contour", intersectingVertices, contourEdges);
+
+  polyscope::registerCurveNetwork("intersectingEdges", allVertices,contourIntersectingEdges);
 
   // Show the GUI
   polyscope::show();
