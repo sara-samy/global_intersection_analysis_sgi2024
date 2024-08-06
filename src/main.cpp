@@ -55,38 +55,6 @@ bool custom_is_edge_intersecting_triangle(const Eigen::Vector3d &e0,
          uvt[2] >= 0.0 && uvt[2] <= 1.0;
 }
 
-void add_edge(std::set<std::pair<int, int>>& edge_set, int v1, int v2)
-{
-
-    if (v1 > v2) std::swap(v1, v2);  
-	edge_set.insert(std:: make_pair(v1, v2));
-}
-
-// Function to find all unique edges from a faces matrix
-Eigen::MatrixXi find_unique_edges(const Eigen::MatrixXi& meshF)
-{
-    std::set<std::pair<int, int>> edge_set;
-
-    for (int i = 0; i < meshF.rows(); ++i) {
-        int v0 = meshF(i, 0);
-        int v1 = meshF(i, 1);
-        int v2 = meshF(i, 2);
-    	add_edge(edge_set, v0, v1);
-        add_edge(edge_set, v1, v2);
-        add_edge(edge_set, v2, v0);
-    }
-	Eigen::MatrixXi meshE(edge_set.size(), 2);
-    int row = 0;
-    for (const auto edge : edge_set) {
-        meshE(row, 0) = edge.first;
-        meshE(row, 1) = edge.second;
-        ++row;
-	}
-
-    //std::cout << meshE;
-
-    return meshE;
-}
 
 int main(int argc, char **argv) {
 
@@ -263,8 +231,12 @@ int main(int argc, char **argv) {
   contourEdges(k, 1) = contourEdges(0, 0);
 
   //get mesh edges
-	Eigen::MatrixXi meshE = find_unique_edges(meshF);
+  Eigen::MatrixXi meshE;
 
+    igl::edges(meshF, meshE);
+
+
+    
   // get the flood fill
   //precompute step
     // find intersecting edges with a contour
