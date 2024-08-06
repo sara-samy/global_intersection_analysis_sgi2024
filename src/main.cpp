@@ -12,6 +12,7 @@
 #include "polyscope/surface_mesh.h"
 #include <polyscope/polyscope.h>
 
+#include "ipc/distance/edge_edge.hpp"
 #include "ipc/utils/intersection.hpp"
 
 #include "ipc/utils/save_obj.hpp"
@@ -52,6 +53,39 @@ bool custom_is_edge_intersecting_triangle(const Eigen::Vector3d &e0,
 
   return uvt[0] >= 0.0 && uvt[1] >= 0.0 && uvt[0] + uvt[1] <= 1.0 &&
          uvt[2] >= 0.0 && uvt[2] <= 1.0;
+}
+
+void add_edge(std::set<std::pair<int, int>>& edge_set, int v1, int v2)
+{
+
+    if (v1 > v2) std::swap(v1, v2);  
+	edge_set.insert(std:: make_pair(v1, v2));
+}
+
+// Function to find all unique edges from a faces matrix
+Eigen::MatrixXi find_unique_edges(const Eigen::MatrixXi& meshF)
+{
+    std::set<std::pair<int, int>> edge_set;
+
+    for (int i = 0; i < meshF.rows(); ++i) {
+        int v0 = meshF(i, 0);
+        int v1 = meshF(i, 1);
+        int v2 = meshF(i, 2);
+    	add_edge(edge_set, v0, v1);
+        add_edge(edge_set, v1, v2);
+        add_edge(edge_set, v2, v0);
+    }
+	Eigen::MatrixXi meshE(edge_set.size(), 2);
+    int row = 0;
+    for (const auto edge : edge_set) {
+        meshE(row, 0) = edge.first;
+        meshE(row, 1) = edge.second;
+        ++row;
+	}
+
+    //std::cout << meshE;
+
+    return meshE;
 }
 
 int main(int argc, char **argv) {
@@ -191,14 +225,14 @@ int main(int argc, char **argv) {
   // }
 
   Eigen::Vector3d currentVertex = intersectingVertices.row(0);
-  Eigen::MatrixXi order(intersectingVertices.rows(), 2);
+  Eigen::MatrixXi contourEdges(intersectingVertices.rows(), 2);
 
   inPath(0, 0) = 1;
   int current = 0;
   int next = 0;
   double shortest = 9999;
   int k = 0;
-  order(k, 0) = current;
+  contourEdges(k, 0) = current;
   while (inPath.minCoeff() == 0) {
     // get all vertices in triangle
 
@@ -218,17 +252,48 @@ int main(int argc, char **argv) {
       }
     }
     inPath(next, 0) = 1;
-    order(k, 0) = current;
-    order(k, 1) = next;
+    contourEdges(k, 0) = current;
+    contourEdges(k, 1) = next;
     current = next;
     currentVertex = intersectingVertices.row(current);
     shortest = 9999;
     k++;
   }
-  order(k, 0) = order(k - 1, 1);
-  order(k, 1) = order(0, 0);
+  contourEdges(k, 0) = contourEdges(k - 1, 1);
+  contourEdges(k, 1) = contourEdges(0, 0);
+
+  //get mesh edges
+	Eigen::MatrixXi meshE = find_unique_edges(meshF);
 
   // get the flood fill
+  //precompute step
+    // find intersecting edges with a contour
+    // for now do for a single contour
+    //later- multiple contours
+
+    //take each edge, compare to each contour edge
+	
+
+
+    //pick an arbitrary point
+    //color it
+    //pick all points next to current point
+    //if a next point has an edge that intersects with our contour, change argument color to a different one
+    //color them with current color value
+    //repeat algo
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // Register the mesh with Polyscope
   polyscope::registerSurfaceMesh("input1", meshV, meshF);
@@ -243,7 +308,7 @@ int main(int argc, char **argv) {
 
   polyscope::registerPointCloud("points", intersectingVertices);
 
-  polyscope::registerCurveNetwork("contour", intersectingVertices, order);
+  polyscope::registerCurveNetwork("contour", meshV, meshE);
 
   // Show the GUI
   polyscope::show();
