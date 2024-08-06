@@ -28,10 +28,6 @@ FetchContent_MakeAvailable(ipc_toolkit)
 message("\n\n == CMAKE recursively building Polyscope\n")
 add_subdirectory("deps/polyscope")
 
-# Find Eigen
-message("\n\n == CMAKE looking for Eigen\n")
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-
 # Add the executable for your project
 add_executable(${PROJECT_NAME} src/main.cpp)
 
@@ -39,14 +35,11 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PUBLIC polyscope)
 # Link against IPC-Toolkit
 target_link_libraries(${PROJECT_NAME} PUBLIC ipc::toolkit)
-# Link against Eigen
-target_link_libraries(${PROJECT_NAME} PUBLIC Eigen3::Eigen)
 
 # Include directories 
 target_include_directories(${PROJECT_NAME} PUBLIC 
     ${ipc_toolkit_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps/libigl/include
 )
 
 # Add any other configurations you need
