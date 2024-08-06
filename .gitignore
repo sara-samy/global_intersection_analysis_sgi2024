@@ -1,3 +1,19 @@
+# Polyscope
+.polyscope.ini
+imgui.ini
+
+# Build directories
+build/
+build_debug/
+
+# Editor and OS things
+imgui.ini
+.DS_Store
+.vscode
+*.swp
+tags
+*.blend1
+
 # Prerequisites
 *.d
 
@@ -5,7 +21,6 @@
 *.slo
 *.lo
 *.o
-*.obj
 
 # Precompiled Headers
 *.gch
