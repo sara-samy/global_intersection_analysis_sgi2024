@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "args/args.hxx"
+//#include "args/args.hxx"
 
 #include "igl/edges.h"
 #include "igl/predicates/predicates.h"
@@ -55,6 +55,21 @@ bool custom_is_edge_intersecting_triangle(const Eigen::Vector3d &e0,
 }
 
 int main(int argc, char **argv) {
+
+    // Read the mesh
+    Eigen::MatrixXd meshV;  // V x 3
+    Eigen::MatrixXd meshVc; // Vx3
+    Eigen::MatrixXi meshF;  // F x 3
+    Eigen::MatrixXi meshFc;
+
+    // Read the first mesh
+    igl::readOBJ("sphere3.obj", meshV, meshF);
+
+    // Read the second mesh
+    igl::readOBJ("cloth.obj", meshVc, meshFc);
+
+#if __APPLE__
+    
   // Configure the argument parser
   args::ArgumentParser parser("Global intersection analysis demo", "");
   // args::Positional<std::string> inFile(parser, "mesh", "input mesh");
@@ -73,21 +88,18 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Read the mesh
-  Eigen::MatrixXd meshV;  // V x 3
-  Eigen::MatrixXd meshVc; // Vx3
-  Eigen::MatrixXi meshF;  // F x 3
-  Eigen::MatrixXi meshFc;
-
-  // Read the first mesh
   std::string filename1 = inFiles.Get()[0];
   std::cout << "loading: " << filename1 << std::endl;
   igl::readOBJ(filename1, meshV, meshF);
 
-  // Read the second mesh
+
   std::string filename2 = inFiles.Get()[1];
   std::cout << "loading: " << filename2 << std::endl;
   igl::readOBJ(filename2, meshVc, meshFc);
+#endif
+
+
+  
 
   polyscope::init();
 
