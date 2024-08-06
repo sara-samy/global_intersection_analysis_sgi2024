@@ -1,3 +1,7 @@
+# Polyscope
+.polyscope.ini
+imgui.ini
+
 # Build directories
 build/
 build_debug/
@@ -17,7 +21,6 @@ tags
 *.slo
 *.lo
 *.o
-*.obj
 
 # Precompiled Headers
 *.gch
