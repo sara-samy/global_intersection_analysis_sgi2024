@@ -276,22 +276,22 @@ int main(int argc, char **argv) {
     	Eigen::Vector3d b = allVertices.row(allEdges(candidate.edge0_id, 1));
     	Eigen::Vector3d c = allVertices.row(allEdges(candidate.edge1_id, 0));
     	Eigen::Vector3d d = allVertices.row(allEdges(candidate.edge1_id, 1));
-
-         
          if(ipc::edge_edge_distance(a, b, c, d)<0.00001)
          {
-            
              if (allEdges(candidate.edge0_id, 0) < meshV.rows())
              {
                  int k = contourIntersectingEdges.rows();
                  contourIntersectingEdges.conservativeResize(k + 1, 2);
                  contourIntersectingEdges(k, 0) = allEdges(candidate.edge0_id, 0);
-                 //if (allEdges(candidate.edge0_id, 1) < meshV.rows())
                  contourIntersectingEdges(k, 1) = allEdges(candidate.edge0_id, 1);
              }
-             //contourIntersectingEdges(k+1, 0) = allEdges(candidate.edge1_id, 0);
-             //contourIntersectingEdges(k+1, 1) = allEdges(candidate.edge1_id, 1);
-
+             else if (allEdges(candidate.edge1_id, 0) < meshV.rows())
+             {
+                 int k = contourIntersectingEdges.rows();
+                 contourIntersectingEdges.conservativeResize(k + 1, 2);
+                 contourIntersectingEdges(k, 0) = allEdges(candidate.edge1_id, 0);
+                 contourIntersectingEdges(k, 1) = allEdges(candidate.edge1_id, 1);
+             }
          }
     }
    
