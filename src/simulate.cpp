@@ -15,78 +15,140 @@ using Eigen::MatrixXi;
 using Eigen::VectorXd;
 using Eigen::VectorXi;
 
+#include <Eigen/Core>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+
 class Hash {
 public:
-  float spacing;
-  int tableSize;
-  int querySize;
-  int maxNumObjects;
+	Hash(double spacing, int maxNumObjects)
+		: spacing(spacing), tableSize(5 * maxNumObjects),
+		cellStart(tableSize + 1, 0),
+		cellEntries(maxNumObjects, 0),
+		queryIds(maxNumObjects, 0),
+		querySize(0),
+		maxNumObjects(maxNumObjects),
+		firstAdjId(maxNumObjects + 1, 0),
+		adjIds(10 * maxNumObjects, 0) {}
 
-  VectorXi cellStart;
-  VectorXi cellEntries;
-  VectorXi queryIds;
+	int hashCoords(int xi, int yi, int zi) const {
+		int h = (xi * 92837111) ^ (yi * 689287499) ^ (zi * 283923481);
+		return std::abs(h) % tableSize;
+	}
 
-  VectorXi firstAdjId;
-  VectorXi adjIds;
+	int intCoord(double coord) const {
+		return static_cast<int>(std::floor(coord / spacing));
+	}
 
-  Hash(float spacing, int maxNumObjects)
-      : spacing(spacing), tableSize(5 * maxNumObjects),
-        maxNumObjects(maxNumObjects) {
-    queryIds = VectorXi::Zero(maxNumObjects);
-    cellStart = VectorXi::Zero(tableSize + 1);
-    adjIds = VectorXi::Zero(10 * maxNumObjects);
-    cellEntries = VectorXi::Zero(maxNumObjects);
-    firstAdjId = VectorXi::Zero(maxNumObjects + 1);
-  }
+	int hashPos(const Eigen::MatrixXd& pos, int nr) const {
+		return hashCoords(
+			intCoord(pos(nr, 0)),
+			intCoord(pos(nr, 1)),
+			intCoord(pos(nr, 2))
+		);
+	}
 
-  // Calculates the hash value for integer coordinates of a particle
-  int hashCoords(int xi, int yi, int zi) {
-    int h = (xi * 92837111) ^ (yi * 689287499) ^ (zi * 283923481);
-    return std::abs(h) % tableSize;
-  }
+	void create(const Eigen::MatrixXd& pos) {
+		int numObjects = std::min(static_cast<int>(pos.rows()), static_cast<int>(cellEntries.size()));
 
-  // Converts a real coordinate of a particle to an integer coordinate
-  int intCoord(float coord) {
-    return static_cast<int>(std::floor(coord / spacing));
-  }
+		// determine cell sizes
+		std::fill(cellStart.begin(), cellStart.end(), 0);
+		std::fill(cellEntries.begin(), cellEntries.end(), 0);
 
-  // Composes hashCoords * intCoord
-  int hashPos(const MatrixXd &pos, int nr) {
-    MatrixXd hashValues = MatrixXd::Zero(pos.rows(), 1);
-    for (int i = 0; i < pos.rows(); ++i) {
-        int xi = intCoord(pos(i, 0));
-        int yi = intCoord(pos(i, 1));
-        int zi = intCoord(pos(i, 2));
-        int hashValue = hashCoords(xi, yi, zi);
-        // Add hashValue to hashValues matrix
-        hashValues(i, 0) = hashValue;
-    }
-    return hashValues;
-  }
+		for (int i = 0; i < numObjects; i++) {
+			int h = hashPos(pos, i);
+			cellStart[h]++;
+		}
 
-  void create(const MatrixXd &pos) {
-    int numObjects = std::min(pos.rows(), cellEntries.size());
+		// determine cell starts
+		int start = 0;
+		for (int i = 0; i < tableSize; i++) {
+			start += cellStart[i];
+			cellStart[i] = start;
+		}
+		cellStart[tableSize] = start;  // guard
 
-    for (int i = 0; i < numObjects; i++) {
-      // obvious mistake here, access matrix to get relevant int
-        int h = hashPos(pos, i);
-        cellStart(h)++;
-    }
+		// fill in objects ids
+		for (int i = 0; i < numObjects; i++) {
+			int h = hashPos(pos, i);
+			cellStart[h]--;
+			cellEntries[cellStart[h]] = i;
+		}
+	}
 
-    // determine cells starts
-    int start = 0;
-    for (int i = 0; i < tableSize; i++) {
-        start += cellStart(i);
-        cellStart(i) = start;
-    }
-    cellStart(tableSize) = start;  // guard
+	void query(const Eigen::MatrixXd& pos, int nr, double maxDist) {
+		int x0 = intCoord(pos(nr, 0) - maxDist);
+		int y0 = intCoord(pos(nr, 1) - maxDist);
+		int z0 = intCoord(pos(nr, 2) - maxDist);
 
-    for (int i = 0; i < numObjects; i++) {
-        int h = hashPos(pos, i);
-        cellStart(h)--;
-        cellEntries(cellStart(h)) = i;
-    }
-  }
+		int x1 = intCoord(pos(nr, 0) + maxDist);
+		int y1 = intCoord(pos(nr, 1) + maxDist);
+		int z1 = intCoord(pos(nr, 2) + maxDist);
+
+		querySize = 0;
+
+		for (int xi = x0; xi <= x1; xi++) {
+			for (int yi = y0; yi <= y1; yi++) {
+				for (int zi = z0; zi <= z1; zi++) {
+					int h = hashCoords(xi, yi, zi);
+					int start = cellStart[h];
+					int end = cellStart[h + 1];
+
+					for (int i = start; i < end; i++) {
+						queryIds[querySize] = cellEntries[i];
+						querySize++;
+					}
+				}
+			}
+		}
+	}
+
+	void queryAll(const Eigen::MatrixXd& pos, double maxDist) {
+		int num = 0;
+		double maxDist2 = maxDist * maxDist;
+
+		for (int i = 0; i < maxNumObjects; i++) {
+			int id0 = i;
+			firstAdjId[id0] = num;
+			query(pos, id0, maxDist);
+
+			for (int j = 0; j < querySize; j++) {
+				int id1 = queryIds[j];
+				if (id1 >= id0)
+					continue;
+				double dist2 = (pos.row(id0) - pos.row(id1)).squaredNorm();
+				if (dist2 > maxDist2)
+					continue;
+
+				if (num >= adjIds.size()) {
+					adjIds.resize(2 * num);  // dynamic array resizing
+				}
+				adjIds[num++] = id1;
+			}
+		}
+
+		firstAdjId[maxNumObjects] = num;
+	}
+
+	const std::vector<int>& getFirstAdjId() const {
+		return firstAdjId;
+	}
+
+	const std::vector<int>& getAdjIds() const {
+		return adjIds;
+	}
+
+private:
+	double spacing;
+	int tableSize;
+	std::vector<int> cellStart;
+	std::vector<int> cellEntries;
+	std::vector<int> queryIds;
+	int querySize;
+	int maxNumObjects;
+	std::vector<int> firstAdjId;
+	std::vector<int> adjIds;
 };
 
 class Cloth {
@@ -117,7 +179,9 @@ public:
 
   // will store gradient of constraint functions later.
   VectorXd grads;
-  
+
+  Hash hash;
+  float spacing=0.1;
 
   void initPhysics(const MatrixXi &F);
   void Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity);
@@ -128,8 +192,9 @@ public:
 
   Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance);
 };
-Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance) {
 
+Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance): hash(spacing,V.rows())
+{
 
 	numParticles = V.rows();
   numTris = F.rows();
@@ -402,7 +467,7 @@ int main(int argc, char **argv) {
 
 	  if (run)
 	  {
-	  	//cloth.Simulate(dt, subSteps, gravity);
+	  	cloth.Simulate(dt, subSteps, gravity);
 	  	//polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 
 	  }
