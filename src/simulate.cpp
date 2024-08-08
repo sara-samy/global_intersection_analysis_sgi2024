@@ -15,6 +15,80 @@ using Eigen::MatrixXi;
 using Eigen::VectorXd;
 using Eigen::VectorXi;
 
+class Hash {
+public:
+  float spacing;
+  int tableSize;
+  int querySize;
+  int maxNumObjects;
+
+  VectorXi cellStart;
+  VectorXi cellEntries;
+  VectorXi queryIds;
+
+  VectorXi firstAdjId;
+  VectorXi adjIds;
+
+  Hash(float spacing, int maxNumObjects)
+      : spacing(spacing), tableSize(5 * maxNumObjects),
+        maxNumObjects(maxNumObjects) {
+    queryIds = VectorXi::Zero(maxNumObjects);
+    cellStart = VectorXi::Zero(tableSize + 1);
+    adjIds = VectorXi::Zero(10 * maxNumObjects);
+    cellEntries = VectorXi::Zero(maxNumObjects);
+    firstAdjId = VectorXi::Zero(maxNumObjects + 1);
+  }
+
+  // Calculates the hash value for integer coordinates of a particle
+  int hashCoords(int xi, int yi, int zi) {
+    int h = (xi * 92837111) ^ (yi * 689287499) ^ (zi * 283923481);
+    return std::abs(h) % tableSize;
+  }
+
+  // Converts a real coordinate of a particle to an integer coordinate
+  int intCoord(float coord) {
+    return static_cast<int>(std::floor(coord / spacing));
+  }
+
+  // Composes hashCoords * intCoord
+  int hashPos(const MatrixXd &pos, int nr) {
+    MatrixXd hashValues = MatrixXd::Zero(pos.rows(), 1);
+    for (int i = 0; i < pos.rows(); ++i) {
+        int xi = intCoord(pos(i, 0));
+        int yi = intCoord(pos(i, 1));
+        int zi = intCoord(pos(i, 2));
+        int hashValue = hashCoords(xi, yi, zi);
+        // Add hashValue to hashValues matrix
+        hashValues(i, 0) = hashValue;
+    }
+    return hashValues;
+  }
+
+  void create(const MatrixXd &pos) {
+    int numObjects = std::min(pos.rows(), cellEntries.size());
+
+    for (int i = 0; i < numObjects; i++) {
+      // obvious mistake here, access matrix to get relevant int
+        int h = hashPos(pos, i);
+        cellStart(h)++;
+    }
+
+    // determine cells starts
+    int start = 0;
+    for (int i = 0; i < tableSize; i++) {
+        start += cellStart(i);
+        cellStart(i) = start;
+    }
+    cellStart(tableSize) = start;  // guard
+
+    for (int i = 0; i < numObjects; i++) {
+        int h = hashPos(pos, i);
+        cellStart(h)--;
+        cellEntries(cellStart(h)) = i;
+    }
+  }
+};
+
 class Cloth {
 public:
   int numParticles;
