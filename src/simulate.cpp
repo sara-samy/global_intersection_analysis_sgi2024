@@ -20,6 +20,7 @@ public:
   int numParticles;
   int numTris;
 
+  MatrixXd initialVertices;
   MatrixXd pos;
   MatrixXd prevPos;
   MatrixXd restPos;
@@ -31,7 +32,7 @@ public:
 
   VectorXd invMass;
   VectorXd bendingLengths;
-  VectorXd stretchingLengths;
+  MatrixXd stretchingLengths;
 
   float stretchingCompliance;
   float bendingCompliance;
@@ -54,19 +55,22 @@ public:
   Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance);
 };
 Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance) {
-  numParticles = V.rows();
+
+
+	numParticles = V.rows();
   numTris = F.rows();
   pos = V;
   prevPos = pos;
   restPos = pos;
   vel = MatrixXd::Zero(numParticles, 3);
+  initialVertices = V;
 
   std::cout << "# Triangles in cloth mesh: " << numTris << std::endl;
   std::cout << "# Particles in cloth mesh: " << numParticles << std::endl;
 
   // Get edges
   igl::edges(F, edgeIds);
-
+  
   // Get neighbouring triangle pairs
   // The (i, j) entry contains id of triangle adjacent to triangle i w.r.t edge
   // j. If the entry is -1 then there are no adjacent triangles w.r.t that edge.
@@ -80,10 +84,11 @@ void Cloth::initPhysics(const MatrixXi &F) {
 	handleCollisions = true;
 
   // Compute the edge lengths
-  igl::edge_lengths(this->pos, F, stretchingLengths);
+	
+  igl::edge_lengths(pos, F, stretchingLengths);
   std::cout << "stretchingLengths has size " << stretchingLengths.rows()
             << " x " << stretchingLengths.cols() << std::endl;
-
+  
   // Compute inverse masses of particles
   invMass = VectorXd::Zero(numParticles);
   // Vector to store the double areas
@@ -100,6 +105,7 @@ void Cloth::initPhysics(const MatrixXi &F) {
   }
   std::cout << "invMass has size " << invMass.rows() << " x " << invMass.cols()
             << std::endl;
+            
 }
 
 void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
@@ -151,8 +157,6 @@ void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
 			}
 		}
 	}
-
-	//updateVisMeshes();
 }
 
 void Cloth::solveConstraints(double dt) {
@@ -176,7 +180,7 @@ void Cloth::solveConstraints(double dt) {
 		// Normalize the vector
 		vec /= len;
 
-		double restLen = stretchingLengths(i);
+		double restLen = (initialVertices.row(id0) - initialVertices.row(id1)).norm();
 		double C = len - restLen;
 		double alpha = stretchingCompliance / (dt * dt);
 		double s = -C / (w + alpha);
@@ -290,7 +294,7 @@ int main(int argc, char **argv) {
   // Read the mesh
   igl::readOBJ(meshPath, meshV, meshF);
 
-  //Cloth cloth(meshV, meshF, 1.0f);
+  Cloth cloth(meshV, meshF, 1.0f);
 
   // Initialize polyscope with some options
   polyscope::view::setUpDir(polyscope::UpDir::ZUp);
