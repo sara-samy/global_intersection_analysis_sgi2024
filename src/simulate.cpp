@@ -303,17 +303,27 @@ int main(int argc, char **argv) {
   // Specify the callback
   //polyscope::state::userCallback = CallbackFunction;
 
+  Eigen::Vector3d gravity(0,-9.8,0);
+  double dt = 0.01;
+  int subSteps = 5;
   auto polyscope_callback = [&]() mutable
   {
 
 	  ImGui::Begin("Simulator");
 
+
 	  if (ImGui::Button(run?"Stop simulation":"Run simulation")) {
 		  run = !run;
 	  }
-	  //if (run)
-		//  polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
+	  ImGui::InputDouble("dt", &dt);
+	  ImGui::SliderInt("Substeps", &subSteps, 1, 20);
 
+	  if (run)
+	  {
+	  	//cloth.Simulate(dt, subSteps, gravity);
+	  	//polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
+
+	  }
 	  ImGui::End();
 	
 
