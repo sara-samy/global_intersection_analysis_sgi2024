@@ -81,6 +81,8 @@ Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance) {
 void Cloth::initPhysics(const MatrixXi &F) {
 
 	thickness = 0.01f;
+	stretchingCompliance = 0.5;
+	bendingCompliance = 0.5;
 	handleCollisions = true;
 
   // Compute the edge lengths
@@ -312,10 +314,7 @@ int main(int argc, char **argv) {
   int subSteps = 5;
   auto polyscope_callback = [&]() mutable
   {
-
 	  ImGui::Begin("Simulator");
-
-
 	  if (ImGui::Button(run?"Stop simulation":"Run simulation")) {
 		  run = !run;
 	  }
@@ -323,6 +322,9 @@ int main(int argc, char **argv) {
 	  ImGui::SliderInt("Substeps", &subSteps, 1, 20);
 	  ImGui::SliderFloat("Bending compliance", &cloth.bendingCompliance, 0, 1);
 	  ImGui::SliderFloat("Stretching compliance", &cloth.stretchingCompliance, 0, 1);
+	  ImGui::SliderFloat("Cloth Thickness", &cloth.thickness, 0, 20, "%.2f");
+	  ImGui::Checkbox("Handle Collisions", &cloth.handleCollisions);
+
 
 	  if (run)
 	  {
@@ -331,8 +333,6 @@ int main(int argc, char **argv) {
 
 	  }
 	  ImGui::End();
-	
-
   };
   polyscope::state::userCallback = polyscope_callback;
 
