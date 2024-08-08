@@ -44,6 +44,8 @@ public:
 
   void initPhysics(const MatrixXi &F);
   void Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity);
+  void solveConstraints(double dt);
+  void Cloth::solveGroundCollisions();
 
   Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance);
 };
@@ -109,11 +111,11 @@ void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
 		hash.queryAll(this.pos, maxTravelDist);
 	}
 	*/
-	for (int step = 0; step < numSubSteps; step++) {
-
+	for (int step = 0; step < numSubSteps; step++) 
+	{
 		// integrate 
-
-		for (int i = 0; i < numParticles; i++) {
+		for (int i = 0; i < numParticles; i++) 
+		{
 			if (invMass(i) > 0.0) {
 
 				Eigen::Vector3d velocity = vel.row(i);
@@ -148,6 +150,58 @@ void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
 
 	//updateVisMeshes();
 }
+
+void Cloth::solveConstraints(double dt) {
+	// Iterate over each constraint
+	for (int i = 0; i < edgeIds.rows(); i++) {
+		int id0 = edgeIds(i, 0);
+		int id1 = edgeIds(i, 1);
+
+		double w0 = invMass(id0);
+		double w1 = invMass(id1);
+		double w = w0 + w1;
+		if (w == 0.0)
+			continue;
+
+		// Compute the vector difference between the two points
+		Eigen::Vector3d vec = pos.row(id0) - pos.row(id1);
+		double len = vec.norm();
+		if (len == 0.0)
+			continue;
+
+		// Normalize the vector
+		vec /= len;
+
+		double restLen = stretchingLengths(i);
+		double C = len - restLen;
+		double alpha = stretchingCompliance / (dt * dt);
+		double s = -C / (w + alpha);
+
+		// Update positions
+		pos.row(id0) += s * w0 * vec;
+		pos.row(id1) -= s * w1 * vec;
+	}
+}
+void Cloth::solveGroundCollisions() {
+	for (int i = 0; i < numParticles; i++) {
+		if (invMass(i) == 0.0)
+			continue;
+
+		// Check the y-coordinate of the particle
+		double y = pos(i, 1);
+		if (y < 0.5 * thickness) {
+			// Apply damping
+			double damping = 1.0;
+			Eigen::Vector3d displacement = pos.row(i) - prevPos.row(i);
+			pos.row(i) += -damping * displacement;
+
+			// Ensure the particle stays above the ground plane
+			pos(i, 1) = 0.5 * thickness;
+		}
+	}
+}
+
+
 
 
 void RunSimulation() { ; }
