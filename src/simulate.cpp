@@ -265,7 +265,7 @@ void Cloth::solveCollisions(double dt) {
 
 
 void RunSimulation() { ; }
-
+bool run = false;
 void CallbackFunction() {
 
   ImGui::PushItemWidth(100);
@@ -302,6 +302,23 @@ int main(int argc, char **argv) {
 
   // Specify the callback
   //polyscope::state::userCallback = CallbackFunction;
+
+  auto polyscope_callback = [&]() mutable
+  {
+
+	  ImGui::Begin("Simulator");
+
+	  if (ImGui::Button(run?"Stop simulation":"Run simulation")) {
+		  run = !run;
+	  }
+	  //if (run)
+		//  polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
+
+	  ImGui::End();
+	
+
+  };
+  polyscope::state::userCallback = polyscope_callback;
 
   // Give control to the polyscope gui
   polyscope::show();
