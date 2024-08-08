@@ -321,6 +321,8 @@ int main(int argc, char **argv) {
 	  }
 	  ImGui::InputDouble("dt", &dt);
 	  ImGui::SliderInt("Substeps", &subSteps, 1, 20);
+	  ImGui::SliderFloat("Bending compliance", &cloth.bendingCompliance, 0, 1);
+	  ImGui::SliderFloat("Stretching compliance", &cloth.stretchingCompliance, 0, 1);
 
 	  if (run)
 	  {
