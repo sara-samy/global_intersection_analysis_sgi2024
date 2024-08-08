@@ -59,7 +59,7 @@ bool custom_is_edge_intersecting_triangle(const Eigen::Vector3d &e0,
 
 
 void floodVertex(int vertexID, Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, const Eigen::VectorXi& contourIntersectingEdgeIds, 
-    Eigen::VectorXi& color)
+    Eigen::VectorXi& color, int color1, int color2)
 {
 
     std::vector<int> otherVertices;
@@ -102,8 +102,8 @@ void floodVertex(int vertexID, Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, con
             if (intersecting)
             {
                 //swap the starting color if it intersects a contour during flood fill
-                if (color(vertexID) == 1)otherColor.push_back(2);
-                else if (color(vertexID) == 2)otherColor.push_back(1);
+                if (color(vertexID) == color2)otherColor.push_back(color1);
+                else if (color(vertexID) == color1)otherColor.push_back(color2);
             }
             else
                 otherColor.push_back(color(vertexID));
@@ -124,13 +124,13 @@ void floodVertex(int vertexID, Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, con
         //flood fill vertices
         for(int i=0;i<otherVertexNumber;i++)
         {
-            floodVertex(otherVertices[i], meshV, meshE, contourIntersectingEdgeIds, color);
+            floodVertex(otherVertices[i], meshV, meshE, contourIntersectingEdgeIds, color,color1,color2);
         }
     }
 }
 
 
-void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi meshF,std::string polyscopeName, Eigen::MatrixXi contourEdges, Eigen::MatrixXd intersectingVertices, Eigen::VectorXi &color)
+void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi meshF,std::string polyscopeName, Eigen::MatrixXi contourEdges, Eigen::MatrixXd intersectingVertices, Eigen::VectorXi &color, int color1, int color2)
 {
     std::vector<ipc::EdgeEdgeCandidate> edge_edge_candidates;
 
@@ -161,7 +161,6 @@ void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi
 
 
     color = color.setZero();
-    int startingColor = 1;
     int firstFloodVertex = 0;
 
     bool chosen = false;
@@ -185,7 +184,7 @@ void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi
         if (ipc::point_edge_distance(a, c, d) < 1e-4)
             if (allEdges(candidate.edge0_id, 0) < meshV.rows())
             {
-                color(allEdges(candidate.edge0_id, 0)) = 2;
+                color(allEdges(candidate.edge0_id, 0)) = color2;
                 if (!chosen)
                 {
                     chosen = true;
@@ -196,7 +195,7 @@ void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi
         if (ipc::point_edge_distance(b, c, d) < 1e-4)
             if (allEdges(candidate.edge0_id, 1) < meshV.rows())
             {
-                color(allEdges(candidate.edge0_id, 1)) = 2;
+                color(allEdges(candidate.edge0_id, 1)) = color2;
                 if (!chosen)
                 {
                     chosen = true;
@@ -207,7 +206,7 @@ void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi
         if (ipc::point_edge_distance(c, a, b) < 1e-4)
             if (allEdges(candidate.edge1_id, 0) < meshV.rows())
             {
-                color(allEdges(candidate.edge1_id, 0)) = 2;
+                color(allEdges(candidate.edge1_id, 0)) = color2;
                 if (!chosen)
                 {
                     chosen = true;
@@ -219,7 +218,7 @@ void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi
             if (allEdges(candidate.edge1_id, 1) < meshV.rows())
             {
 
-                color(allEdges(candidate.edge1_id, 1)) = 2;
+                color(allEdges(candidate.edge1_id, 1)) = color2;
                 if (!chosen)
                 {
                     chosen = true;
@@ -267,8 +266,8 @@ void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi
     }
 
 
-    if (firstFloodVertex == 0) color(0) = 1;
-    floodVertex(firstFloodVertex, meshV, meshE, contourIntersectingEdgesIDs, color);
+    if (firstFloodVertex == 0) color(0) = color1;
+    floodVertex(firstFloodVertex, meshV, meshE, contourIntersectingEdgesIDs, color,color1,color2);
     polyscope::getSurfaceMesh(polyscopeName)->addVertexScalarQuantity("coloring", color);
 
 
@@ -464,9 +463,12 @@ int main(int argc, char** argv) {
     Eigen::VectorXi color1(meshV.rows());
     Eigen::VectorXi color2(meshVc.rows());
 
+    int colorOutsideContour = 1;
+    int colorInsideContour = 2;
+    int colorInsideContour2 = 3;
 
-    colorVertices(meshV, meshE, meshF, "input1", contourEdges, intersectingVertices,color1);
-    colorVertices(meshVc, meshEc, meshFc, "input2", contourEdges, intersectingVertices,color2);
+    colorVertices(meshV, meshE, meshF, "input1", contourEdges, intersectingVertices,color1,colorOutsideContour,colorInsideContour);
+    colorVertices(meshVc, meshEc, meshFc, "input2", contourEdges, intersectingVertices,color2,colorOutsideContour,colorInsideContour2);
 
     
 
