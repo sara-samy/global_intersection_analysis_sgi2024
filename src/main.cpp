@@ -298,40 +298,6 @@ int main(int argc, char** argv) {
     // Read the second mesh
     igl::readOBJ(mesh2Path, meshVc, meshFc);
 
-#if __APPLE__
-
-    // Configure the argument parser
-    args::ArgumentParser parser("Global intersection analysis demo", "");
-    // args::Positional<std::string> inFile(parser, "mesh", "input mesh");
-    args::PositionalList<std::string> inFiles(parser, "meshes",
-        "input mesh files");
-
-    // Parse args
-    try {
-        parser.ParseCLI(argc, argv);
-    }
-    catch (args::Help) {
-        std::cout << parser;
-        return 0;
-    }
-    catch (args::ParseError e) {
-        std::cerr << e.what() << std::endl;
-        std::cerr << parser;
-        return 1;
-    }
-
-    std::string filename1 = inFiles.Get()[0];
-    std::cout << "loading: " << filename1 << std::endl;
-    igl::readOBJ(filename1, meshV, meshF);
-
-
-    std::string filename2 = inFiles.Get()[1];
-    std::cout << "loading: " << filename2 << std::endl;
-    igl::readOBJ(filename2, meshVc, meshFc);
-#endif
-
-
-
 
     polyscope::init();
 
