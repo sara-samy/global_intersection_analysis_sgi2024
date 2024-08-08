@@ -52,3 +52,30 @@ if(MSVC)
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -w)
 endif()
+
+
+
+# Set project name and version
+project(xpbd VERSION 1.0)
+
+# Add the executable for your project
+add_executable(${PROJECT_NAME} src/simulate.cpp)
+
+# Link against Polyscope
+target_link_libraries(${PROJECT_NAME} PUBLIC polyscope)
+# Link against IPC-Toolkit
+target_link_libraries(${PROJECT_NAME} PUBLIC ipc::toolkit)
+
+# Include directories 
+target_include_directories(${PROJECT_NAME} PUBLIC 
+    ${ipc_toolkit_SOURCE_DIR}/include
+    ${polyscope_SOURCE_DIR}/include
+)
+
+# Add any other configurations you need
+# Example: Set specific compiler options
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE -w)
+endif()
