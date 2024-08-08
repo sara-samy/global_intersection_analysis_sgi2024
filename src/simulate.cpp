@@ -220,8 +220,8 @@ Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance): has
 void Cloth::initPhysics(const MatrixXi &F) {
 
 	thickness = 0.01f;
-	stretchingCompliance = 0.5;
-	bendingCompliance = 0.5;
+	stretchingCompliance = 0.01;
+	bendingCompliance = 0.01;
 	handleCollisions = true;
 
   // Compute the edge lengths
@@ -454,21 +454,27 @@ int main(int argc, char **argv) {
   auto polyscope_callback = [&]() mutable
   {
 	  ImGui::Begin("Simulator");
-	  if (ImGui::Button(run?"Stop simulation":"Run simulation")) {
+	  if (ImGui::Button(run ? "Stop simulation" : "Run simulation")) {
 		  run = !run;
 	  }
+  	
 	  ImGui::InputDouble("dt", &dt);
 	  ImGui::SliderInt("Substeps", &subSteps, 1, 20);
 	  ImGui::SliderFloat("Bending compliance", &cloth.bendingCompliance, 0, 1);
 	  ImGui::SliderFloat("Stretching compliance", &cloth.stretchingCompliance, 0, 1);
 	  ImGui::SliderFloat("Cloth Thickness", &cloth.thickness, 0, 20, "%.2f");
 	  ImGui::Checkbox("Handle Collisions", &cloth.handleCollisions);
+	  if (ImGui::Button("Reset Simulation"))
+	  {
+		  cloth.pos = cloth.initialVertices;
+		  polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 
+	  }
 
 	  if (run)
 	  {
 	  	cloth.Simulate(dt, subSteps, gravity);
-	  	//polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
+		polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 
 	  }
 	  ImGui::End();
