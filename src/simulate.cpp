@@ -36,10 +36,14 @@ public:
   float stretchingCompliance;
   float bendingCompliance;
 
+  float thickness;
+
   // will store gradient of constraint functions later.
   VectorXd grads;
+  
 
   void initPhysics(const MatrixXi &F);
+  void Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity);
 
   Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance);
 };
@@ -65,6 +69,10 @@ Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance) {
   initPhysics(F);
 }
 void Cloth::initPhysics(const MatrixXi &F) {
+
+	thickness = 0.01f;
+
+
   // Compute the edge lengths
   igl::edge_lengths(this->pos, F, stretchingLengths);
   std::cout << "stretchingLengths has size " << stretchingLengths.rows()
@@ -87,6 +95,60 @@ void Cloth::initPhysics(const MatrixXi &F) {
   std::cout << "invMass has size " << invMass.rows() << " x " << invMass.cols()
             << std::endl;
 }
+
+void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
+{
+
+	double dt = frameDt / numSubSteps;
+	double maxVelocity = 0.2 * thickness / dt;
+
+	/*
+	if (handleCollisions) {
+		hash.create(this.pos);
+		double maxTravelDist = maxVelocity * frameDt;
+		hash.queryAll(this.pos, maxTravelDist);
+	}
+	*/
+	for (int step = 0; step < numSubSteps; step++) {
+
+		// integrate 
+
+		for (int i = 0; i < numParticles; i++) {
+			if (invMass(i) > 0.0) {
+
+				Eigen::Vector3d velocity = vel.row(i);
+				velocity += gravity;
+				double vNorm = velocity.norm();
+				double maxV = 0.2 * thickness / dt;
+				if (vNorm > maxV) {
+					velocity=velocity * maxV / vNorm;
+				}
+				prevPos.row(i) = pos.row(i);
+				pos.row(i) += velocity*dt;
+			}
+		}
+
+		// solve
+
+		//solveGroundCollisions();
+
+		//solveConstraints(dt);
+		//if (handleCollisions)
+			//solveCollisions(dt);
+
+		// update velocities
+
+		for (int i = 0; i < numParticles; i++) {
+			if (invMass(i) > 0.0)
+			{
+				vel.row(i) = (pos.row(i) - prevPos.row(i)) / dt;
+			}
+		}
+	}
+
+	//updateVisMeshes();
+}
+
 
 void RunSimulation() { ; }
 
@@ -114,7 +176,7 @@ int main(int argc, char **argv) {
   // Read the mesh
   igl::readOBJ(meshPath, meshV, meshF);
 
-  Cloth cloth(meshV, meshF, 1.0f);
+  //Cloth cloth(meshV, meshF, 1.0f);
 
   // Initialize polyscope with some options
   polyscope::view::setUpDir(polyscope::UpDir::ZUp);
@@ -125,7 +187,7 @@ int main(int argc, char **argv) {
   polyscope::registerSurfaceMesh("Cloth", meshV, meshF);
 
   // Specify the callback
-  polyscope::state::userCallback = CallbackFunction;
+  //polyscope::state::userCallback = CallbackFunction;
 
   // Give control to the polyscope gui
   polyscope::show();
