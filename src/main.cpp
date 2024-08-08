@@ -14,6 +14,7 @@
 
 #include "ipc/broad_phase/bvh.hpp"
 #include "ipc/distance/edge_edge.hpp"
+#include "ipc/distance/point_edge.hpp"
 #include "ipc/utils/intersection.hpp"
 
 #include "ipc/utils/save_obj.hpp"
@@ -57,11 +58,16 @@ bool custom_is_edge_intersecting_triangle(const Eigen::Vector3d &e0,
 }
 
 
-void floodVertex(int vertexID, Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, const Eigen::VectorXi& contourIntersectingEdgeIds, Eigen::VectorXi& color, int startingColor = 1)
+void floodVertex(int vertexID, Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, const Eigen::VectorXi& contourIntersectingEdgeIds, 
+    Eigen::VectorXi& color)
 {
 
+    std::vector<int> otherVertices;
+    std::vector<int> otherColor;
+    int otherVertexNumber = 0;
+
     //color current vertex
-    color(vertexID) = startingColor;
+    //color(vertexID) = startingColor;
 
     for(int i=0;i<meshE.rows(); i++)
     {
@@ -80,33 +86,63 @@ void floodVertex(int vertexID, Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, con
             otherVertex = meshE(i, 0);
         }
 
-        if(connecting)
+        if(connecting && color(otherVertex,0)==0) // if they are connected and the next vertex has no assigned color, add them to list
         {
-            if (color(otherVertex, 0) == 0)//if not colored, do something
+            otherVertices.push_back(otherVertex);
+
+        	bool intersecting = false;
+        	for (int j = 0; j < contourIntersectingEdgeIds.rows(); j++)
             {
-                //check if intersecting
-                bool intersecting = false;
-                for (int j = 0; j < contourIntersectingEdgeIds.rows(); j++)
+        		if (contourIntersectingEdgeIds(j) == i)
                 {
-                    if (contourIntersectingEdgeIds(j) == i)
-                    {
-                        intersecting = true;
-                        break;
-                    }
+        			intersecting = true;
+        			break;
                 }
-                if (intersecting)
-                {
-                    //swap the starting color if it intersects a contour during flood fill
-                    if (startingColor == 1)startingColor = 2;
-                    else if (startingColor == 2)startingColor = 1;
-
-                }
-                floodVertex(otherVertex, meshV, meshE, contourIntersectingEdgeIds, color, startingColor);
-
             }
+            if (intersecting)
+            {
+                //swap the starting color if it intersects a contour during flood fill
+                if (color(vertexID) == 1)otherColor.push_back(2);
+                else if (color(vertexID) == 2)otherColor.push_back(1);
+            }
+            else
+                otherColor.push_back(color(vertexID));
+            otherVertexNumber++;
+
         }
 
     }
+    
+    if(otherVertexNumber>0) // color all vertices in list if list size greater than 0
+    {
+	    //color vertices
+        for(int i=0;i<otherVertexNumber;i++)
+        {
+            color(otherVertices[i]) = otherColor[i];
+        }
+
+        //flood fill vertices
+        for(int i=0;i<otherVertexNumber;i++)
+        {
+            floodVertex(otherVertices[i], meshV, meshE, contourIntersectingEdgeIds, color);
+        }
+    }
+}
+
+void updateColor(Eigen::VectorXi newColorData)
+{
+    
+	polyscope::getSurfaceMesh("input1")->removeQuantity("coloring");
+    
+
+    // Add the new scalar quantity
+    polyscope::getSurfaceMesh("input1")->addVertexScalarQuantity("coloring", newColorData);
+    polyscope::getSurfaceMesh("input1")->setAllQuantitiesEnabled(true);
+}
+
+void CallbackFunction() {
+
+    
 }
 
 
@@ -120,8 +156,8 @@ int main(int argc, char** argv) {
 
     std::string baseDir = "../data/";
 
-    std::string meshfilename1 = "sphere3.obj";
-    std::string meshfilename2 = "cloth.obj";
+    std::string meshfilename1 = "plane.obj";
+    std::string meshfilename2 = "sphere3.obj";
 
     // Concatenate the base directory path and the filename
     std::string mesh1Path = baseDir + meshfilename1;
@@ -169,9 +205,16 @@ int main(int argc, char** argv) {
 
     polyscope::init();
 
-    meshVc.rowwise() +=
-        Eigen::Vector3d(-1.2, -0.4, -0.24)
+    meshV.rowwise() +=
+        Eigen::Vector3d(10.0,7.0,-3.25)
         .transpose(); //+ Eigen::Vector3d(-1, -1, 0).transpose();
+    
+    
+    for (int i = 0; i<meshV.rows(); i++)
+    {
+        meshV.row(i) = meshV.row(i) * 0.05;
+    }
+    
 
     // Register the mesh with Polyscope
     polyscope::registerSurfaceMesh("input1", meshV, meshF);
@@ -238,15 +281,6 @@ int main(int argc, char** argv) {
     Eigen::VectorXi inPath(intersectingVertices.rows(), 1);
     inPath = inPath.setZero();
 
-    // take a point, make it current point, mark it
-    //
-    // loop
-    // for the triangle the point is in
-    // find closest any unmarked vertex in triangle, add that to list, mark it
-    //  if no closest in triangle, look at joined triangles, and see if those have
-    //  points closest which are unmarked, choose that, mark it, add tp list, make
-    //  it current point repeat all points are marked
-    //
     if (intersectingVertices.rows() > 0)
     {
         Eigen::Vector3d currentVertex = intersectingVertices.row(0);
@@ -290,10 +324,12 @@ int main(int argc, char** argv) {
 
     //get mesh edges
     Eigen::MatrixXi meshE;
+    Eigen::MatrixXi meshEc;
 
 
     std::vector<ipc::EdgeEdgeCandidate> edge_edge_candidates;
     igl::edges(meshF, meshE);
+    igl::edges(meshFc, meshEc);
 
     Eigen::MatrixXd allVertices(meshV.rows() + intersectingVertices.rows(), 3);
     allVertices << meshV, intersectingVertices;
@@ -309,24 +345,95 @@ int main(int argc, char** argv) {
 
 
     ipc::BVH bvh;
-    bvh.build(allVertices, allEdges, meshF);
+    bvh.build(allVertices, allEdges, meshF,1e-3);
+
+    bvh.can_vertices_collide = [meshV](size_t vi, size_t vj) {
+        return (vi <= meshV.rows() && vj > meshV.rows()) || (vi > meshV.rows() && vj <= meshV.rows());
+    };
+    
+
+
     bvh.detect_edge_edge_candidates(edge_edge_candidates);
 
+    Eigen::VectorXi color(meshV.rows());
+
+    color = color.setZero();
+    int startingColor=1;
+    int firstFloodVertex = 0;
+
+    bool chosen = false;
+    
+    for (auto candidate : edge_edge_candidates)
+    {
 
 
+        Eigen::Vector3d a = allVertices.row(allEdges(candidate.edge0_id, 0));
+        Eigen::Vector3d b = allVertices.row(allEdges(candidate.edge0_id, 1));
+        Eigen::Vector3d c = allVertices.row(allEdges(candidate.edge1_id, 0));
+        Eigen::Vector3d d = allVertices.row(allEdges(candidate.edge1_id, 1));
 
-    // get the flood fill
-    //precompute step
-      // find intersecting edges with a contour
-      // for now do for a single contour
-      //later- multiple contours
+        // Check for degenerate edges
+        if ((a == b) || (c == d)) {
+            // One of the edges is degenerate, skip this candidate
+            edge_edge_candidates.erase(std::remove(edge_edge_candidates.begin(), edge_edge_candidates.end(), candidate), edge_edge_candidates.end());
+            continue;
+        }
+	    //check if an edge has a vertex near the countour edge, remove the edge if this is the case
+        if(ipc::point_edge_distance(a,c,d) < 1e-4)
+            if (allEdges(candidate.edge0_id, 0) < meshV.rows())
+        {
+            color(allEdges(candidate.edge0_id, 0)) = 2;
+            if(!chosen)
+            {
+                chosen = true;
+                firstFloodVertex = allEdges(candidate.edge0_id, 0);
+
+            }
+        }
+        if (ipc::point_edge_distance(b, c, d) < 1e-4)
+            if (allEdges(candidate.edge0_id, 1) < meshV.rows()) 
+        {
+            color(allEdges(candidate.edge0_id, 1)) = 2;
+            if (!chosen)
+            {
+                chosen = true;
+                firstFloodVertex = allEdges(candidate.edge0_id, 1);
+
+            }
+        }
+        if (ipc::point_edge_distance(c, a, b) < 1e-4)
+            if (allEdges(candidate.edge1_id, 0) < meshV.rows())
+        {
+            color(allEdges(candidate.edge1_id, 0)) = 2;
+            if (!chosen)
+            {
+                chosen = true;
+                firstFloodVertex = allEdges(candidate.edge1_id, 0);
+
+            }
+        }
+    	if(ipc::point_edge_distance(d, a, b) < 1e-4)
+            if (allEdges(candidate.edge1_id, 1) < meshV.rows())
+        {
+                
+					color(allEdges(candidate.edge1_id, 1)) = 2;
+                if (!chosen)
+                {
+                    chosen = true;
+                    firstFloodVertex = allEdges(candidate.edge1_id, 1);
+
+                }
+        }
+
+    }
+
     Eigen::MatrixXd contourIntersectingEdges(0, 2);
     Eigen::VectorXi contourIntersectingEdgesIDs(0);
     //take each edge, compare to each contour edge
 
 
 
-
+    
     for (auto candidate : edge_edge_candidates)
     {
 
@@ -334,9 +441,9 @@ int main(int argc, char** argv) {
         Eigen::Vector3d b = allVertices.row(allEdges(candidate.edge0_id, 1));
         Eigen::Vector3d c = allVertices.row(allEdges(candidate.edge1_id, 0));
         Eigen::Vector3d d = allVertices.row(allEdges(candidate.edge1_id, 1));
-        if (ipc::edge_edge_distance(a, b, c, d) < 0.00001)
+        if (ipc::edge_edge_distance(a, b, c, d) < 1e-3)
         {
-            if (allEdges(candidate.edge0_id, 0) < meshV.rows())//if first edge belongs to first mesh 
+            if (candidate.edge0_id < meshE.rows())//if first edge belongs to first mesh 
             {
                 int k = contourIntersectingEdges.rows();
                 contourIntersectingEdges.conservativeResize(k + 1, 2);
@@ -347,7 +454,7 @@ int main(int argc, char** argv) {
                 contourIntersectingEdgesIDs(k, 0) = candidate.edge0_id;
 
             }
-            else if (allEdges(candidate.edge1_id, 0) < meshV.rows())//if first edge belongs to first mesh 
+            else if (candidate.edge1_id < meshE.rows())//if second edge belongs to first mesh 
             {
                 int k = contourIntersectingEdges.rows();
                 contourIntersectingEdges.conservativeResize(k + 1, 2);
@@ -359,29 +466,23 @@ int main(int argc, char** argv) {
             }
         }
     }
+    
 
-
-    //pick an arbitrary point
-
-    //color it
-    //pick all points next to current point
-    //if a next point has an edge that intersects with our contour, change argument color to a different one
-    //color them with current color value
-    //repeat algo
+    if(firstFloodVertex==0) color(0) = 1;
+    floodVertex(firstFloodVertex, meshV, meshE, contourIntersectingEdgesIDs, color);
+    	polyscope::getSurfaceMesh("input1")->addVertexScalarQuantity("coloring", color);
 
 
 
-    Eigen::VectorXi color(meshV.rows());
-    color = color.setZero();
-
-    floodVertex(meshE(0, 0), meshV, meshE, contourIntersectingEdgesIDs, color);
 
         if(contourEdges.rows()>0)
 		    polyscope::registerCurveNetwork("contour", intersectingVertices, contourEdges);
         if(contourIntersectingEdges.rows()>0)
-	    	polyscope::registerCurveNetwork("intersectingEdges", meshV,contourIntersectingEdges);
-        if(color.size()>0)
-    	polyscope::getSurfaceMesh("input1")->addVertexScalarQuantity("coloring", color);
+	    	polyscope::registerCurveNetwork("intersectingEdges", allVertices,contourIntersectingEdges);
+
+        if(color.size()>0){}
+
+        //updateColor(color);
 
 	}
     
@@ -390,14 +491,16 @@ int main(int argc, char** argv) {
 
 
   
-  if(intersection.rows()>0)
-	 polyscope::getSurfaceMesh("input1")->addFaceScalarQuantity("intersection",intersection);
+  //if(intersection.rows()>0)
+	 //polyscope::getSurfaceMesh("input1")->addFaceScalarQuantity("intersection",intersection);
   if(intersectingVertices.rows()>0)
 	polyscope::registerPointCloud("points", intersectingVertices);
 
 
   
   // Show the GUI
+  //polyscope::state::userCallback = CallbackFunction;
+
   polyscope::show();
   std::cout << "Hello world";
 }
