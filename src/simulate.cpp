@@ -38,6 +38,8 @@ public:
 
   float thickness;
 
+  bool handleCollisions;
+
   // will store gradient of constraint functions later.
   VectorXd grads;
   
@@ -46,6 +48,8 @@ public:
   void Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity);
   void solveConstraints(double dt);
   void Cloth::solveGroundCollisions();
+  void Cloth::solveCollisions(double dt);
+
 
   Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance);
 };
@@ -73,7 +77,7 @@ Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance) {
 void Cloth::initPhysics(const MatrixXi &F) {
 
 	thickness = 0.01f;
-
+	handleCollisions = true;
 
   // Compute the edge lengths
   igl::edge_lengths(this->pos, F, stretchingLengths);
@@ -104,13 +108,13 @@ void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
 	double dt = frameDt / numSubSteps;
 	double maxVelocity = 0.2 * thickness / dt;
 
-	/*
+	
 	if (handleCollisions) {
-		hash.create(this.pos);
+		//hash.create(pos);
 		double maxTravelDist = maxVelocity * frameDt;
-		hash.queryAll(this.pos, maxTravelDist);
+		//hash.queryAll(pos, maxTravelDist);
 	}
-	*/
+	
 	for (int step = 0; step < numSubSteps; step++) 
 	{
 		// integrate 
@@ -132,11 +136,11 @@ void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
 
 		// solve
 
-		//solveGroundCollisions();
+		solveGroundCollisions();
 
-		//solveConstraints(dt);
-		//if (handleCollisions)
-			//solveCollisions(dt);
+		solveConstraints(dt);
+		if (handleCollisions)
+			solveCollisions(dt);
 
 		// update velocities
 
@@ -201,6 +205,62 @@ void Cloth::solveGroundCollisions() {
 	}
 }
 
+void Cloth::solveCollisions(double dt) {
+	double thickness2 = thickness * thickness;
+
+	for (int i = 0; i < numParticles; i++) {
+		if (invMass(i) == 0.0)
+			continue;
+
+		int id0 = i;
+		int first = 0;//hash.firstAdjId[i];
+		int last = 0;// hash.firstAdjId[i + 1];
+
+		for (int j = first; j < last; j++) {
+			int id1 = 0;// hash.adjIds[j];
+			if (invMass(id1) == 0.0)
+				continue;
+
+			// Vector difference between particles
+			Eigen::Vector3d vec = pos.row(id1) - pos.row(id0);
+			double dist2 = vec.squaredNorm();
+
+			if (dist2 > thickness2 || dist2 == 0.0)
+				continue;
+
+			double restDist2 = (restPos.row(id0) - restPos.row(id1)).squaredNorm();
+
+			double minDist = thickness;
+			if (dist2 > restDist2)
+				continue;
+
+			if (restDist2 < thickness2)
+				minDist = sqrt(restDist2);
+
+			// Position correction
+			double dist = sqrt(dist2);
+			vec *= (minDist - dist) / dist;
+			pos.row(id0) -= 0.5 * vec;
+			pos.row(id1) += 0.5 * vec;
+
+			// Velocity corrections
+			Eigen::Vector3d vel0 = pos.row(id0) - prevPos.row(id0);
+			Eigen::Vector3d vel1 = pos.row(id1) - prevPos.row(id1);
+
+			// Average velocity
+			Eigen::Vector3d avgVel = 0.5 * (vel0 + vel1);
+
+			// Correct velocities
+			vel0 -= avgVel;
+			vel1 -= avgVel;
+
+			// Apply corrections 
+			double friction = 0.0;
+			pos.row(id0) += friction * vel0;
+			pos.row(id1) += friction * vel1;
+		}
+	}
+}
 
 
 
