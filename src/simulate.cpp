@@ -646,6 +646,10 @@ public:
   // will store gradient of constraint functions later.
   VectorXd grads;
 
+    //for now we copy this from the contouring function
+  VectorXi coloredVertices;
+  Vector3d attractiveForceDir;//direction of GIA intersection resolving force
+
   Hash hash;
   float spacing=0.01;
 
@@ -768,11 +772,23 @@ void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity, f
 
 		// solve
 
-		solveGroundCollisions(groundHeight);
+		//solveGroundCollisions(groundHeight);
 
 		solveConstraints(dt);
-		if (handleCollisions)
-			solveCollisions(dt);
+
+        //add in cloth collision resolution
+        for (int i = 0; i < numParticles; i++)
+        {
+            if (invMass(i) > 0.0) 
+            {
+                Eigen::Vector3d velocity = vel.row(i);
+                pos.row(i) += attractiveForceDir * dt * 0.5;
+            }
+        }
+
+
+		//if (handleCollisions)
+			//solveCollisions(dt);
 
 		// update velocities
 
@@ -975,20 +991,20 @@ int main() {
 
 
 
+  //////////////////////////////////////////////GIA
+  
+  Eigen::VectorXi color1(meshV.rows());
+  Eigen::VectorXi color2(meshVb.rows());
 
-
-
+  Eigen::Vector3d forceDir = getAttractiveForceDirection(meshV, meshF, meshVb, meshFb, color1, color2).normalized();
+  cloth.coloredVertices = color1;
+  cloth.attractiveForceDir = forceDir;
 
 
 
   /////////////////////////////////////////////SIMULATION
   
-  Eigen::VectorXi color1(meshV.rows());
-  Eigen::VectorXi color2(meshVb.rows());
-
-  Eigen::Vector3d forceDir = getAttractiveForceDirection(meshV, meshF, meshVb, meshFb, color1, color2);
-
-
+  
   Vector3d gravity(0,-9.8,0); 
   double dt = 0.01;
   int subSteps = 5;
@@ -1028,7 +1044,9 @@ int main() {
 		  //get attractive forces from both given meshes
 
 
-
+          forceDir = getAttractiveForceDirection(meshV, meshF, meshVb, meshFb, color1, color2).normalized();
+          cloth.coloredVertices = color1;
+          cloth.attractiveForceDir = forceDir;
 
 	  	cloth.Simulate(dt, subSteps, gravity, -planeHeight - collisionPlaneOffset);
 
