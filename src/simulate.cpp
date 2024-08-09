@@ -6,6 +6,7 @@
 #include "igl/edges.h"
 #include "igl/readOBJ.h"
 #include "igl/triangle_triangle_adjacency.h"
+#include "polyscope/point_cloud.h"
 
 #include "polyscope/polyscope.h"
 #include "polyscope/surface_mesh.h"
@@ -195,6 +196,9 @@ public:
 
   bool handleCollisions;
 
+  int topLeftCorner = -1;
+  int topRightCorner = -1;
+
   // will store gradient of constraint functions later.
   VectorXd grads;
 
@@ -227,11 +231,13 @@ Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance): has
 
   // Get edges
   igl::edges(F, edgeIds);
-
   // Get neighbouring triangle pairs
   // The (i, j) entry contains id of triangle adjacent to triangle i w.r.t edge
   // j. If the entry is -1 then there are no adjacent triangles w.r.t that edge.
   igl::triangle_triangle_adjacency(F, triPairs);
+
+  invMass = VectorXd::Zero(numParticles);
+  
 
   initPhysics(F);
 }
@@ -249,7 +255,6 @@ void Cloth::initPhysics(const MatrixXi &F) {
             << " x " << stretchingLengths.cols() << std::endl;
 
   // Compute inverse masses of particles
-  invMass = VectorXd::Zero(numParticles);
   // Vector to store the double areas
   VectorXd triAreas;
   igl::doublearea(this->pos, F, triAreas);
@@ -262,6 +267,27 @@ void Cloth::initPhysics(const MatrixXi &F) {
       invMass(vertex_index) += 1.0 / vertexArea;
     }
   }
+
+  // Finding the top corners
+  double maxY = initialVertices.col(1).maxCoeff();
+
+  for (int i = 0; i < initialVertices.rows(); ++i) {
+
+	  if (initialVertices(i, 1) == maxY) {
+		  if (topLeftCorner == -1 || initialVertices(i, 0) < initialVertices(topLeftCorner, 0)) {
+			  topLeftCorner = i;
+			  invMass(i) = 0;
+
+		  }
+		  if (topRightCorner == -1 || initialVertices(i, 0) > initialVertices(topRightCorner, 0)) {
+			  topRightCorner = i;
+			  invMass(i) = 0;
+
+		  }
+	  }
+  }
+
+
 }
 
 void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity, float groundHeight=0)
@@ -437,7 +463,7 @@ int main() {
   MatrixXi meshF; // #F x 3
 
   std::string baseDir = "../data/";
-  std::string meshfilename = "plane.obj";
+  std::string meshfilename = "cloth.obj";
   std::string meshPath = baseDir + meshfilename;
   igl::readOBJ(meshPath, meshV, meshF);
 
@@ -449,6 +475,7 @@ int main() {
   //}
 
   Cloth cloth(meshV, meshF, 1.0f);
+
 
   // Read the mesh for the rigid plane
   //MatrixXd rigidMeshV;
@@ -489,6 +516,7 @@ int main() {
 
   
 
+
   Vector3d gravity(0,-9.8,0); 
   double dt = 0.01;
   int subSteps = 5;
@@ -520,18 +548,22 @@ int main() {
 		  polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 
 	  }
+	if(ImGui::Button("Fix point"))
+	{
+		
+	}
 
 	  if (run)
 	  {
 	  	cloth.Simulate(dt, subSteps, gravity,-planeHeight-collisionPlaneOffset);
 		polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
-
 	  }
 
 	  ImGui::End();
   };
   polyscope::view::setUpDir(polyscope::UpDir::YUp);
   polyscope::state::userCallback = polyscope_callback;
+
 
   // Give control to the polyscope gui
   polyscope::show();
