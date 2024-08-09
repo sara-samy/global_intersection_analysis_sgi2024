@@ -268,7 +268,7 @@ void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi
 
     if (firstFloodVertex == 0) color(0) = color1;
     floodVertex(firstFloodVertex, meshV, meshE, contourIntersectingEdgesIDs, color,color1,color2);
-    polyscope::getSurfaceMesh(polyscopeName)->addVertexScalarQuantity("coloring", color);
+    //polyscope::getSurfaceMesh(polyscopeName)->addVertexScalarQuantity("coloring", color);
 
 
 
@@ -395,20 +395,15 @@ void createContour(Eigen::MatrixXd meshV, Eigen::MatrixXi meshF, Eigen::MatrixXd
 
 
 
-        if (contourEdges.rows() > 0)
-            polyscope::registerCurveNetwork("contour", intersectingVertices, contourEdges);
+        //if (contourEdges.rows() > 0)
+          //  polyscope::registerCurveNetwork("contour", intersectingVertices, contourEdges);
 
     }
 
-
-
-
-
-
     //if(intersection.rows()>0)
        //polyscope::getSurfaceMesh("input1")->addFaceScalarQuantity("intersection",intersection);
-    if (intersectingVertices.rows() > 0)
-        polyscope::registerPointCloud("points", intersectingVertices);
+    //if (intersectingVertices.rows() > 0)
+      //  polyscope::registerPointCloud("points", intersectingVertices);
 
 }
 
@@ -417,9 +412,6 @@ Eigen::Vector3d getAttractiveForceDirection(Eigen::MatrixXd meshV, Eigen::Matrix
     
 
     createContour(meshV, meshF, meshVc, meshFc, color1, color2);
-
-
-
     //using both positions, find attractive force direction
     Eigen::Vector3d avg1 = { 0,0,0 };
     int colorCount = 0;
