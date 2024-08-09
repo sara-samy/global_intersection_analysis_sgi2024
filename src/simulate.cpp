@@ -227,7 +227,7 @@ Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance): has
 
   // Get edges
   igl::edges(F, edgeIds);
-  
+
   // Get neighbouring triangle pairs
   // The (i, j) entry contains id of triangle adjacent to triangle i w.r.t edge
   // j. If the entry is -1 then there are no adjacent triangles w.r.t that edge.
@@ -243,11 +243,11 @@ void Cloth::initPhysics(const MatrixXi &F) {
 	handleCollisions = true;
 
   // Compute the edge lengths
-	
+
   igl::edge_lengths(pos, F, stretchingLengths);
   std::cout << "stretchingLengths has size " << stretchingLengths.rows()
             << " x " << stretchingLengths.cols() << std::endl;
-  
+
   // Compute inverse masses of particles
   invMass = VectorXd::Zero(numParticles);
   // Vector to store the double areas
@@ -437,7 +437,42 @@ int main() {
   std::string meshPath = baseDir + meshfilename;
   igl::readOBJ(meshPath, meshV, meshF);
 
+  // Rotate the plane mesh
+  //for (int i = 0; i < meshV.rows(); ++i) {
+  //    double temp = meshV(i, 0);
+  //    meshV(i, 0) = meshV(i, 1);
+  //    meshV(i, 1) = temp;
+  //}
+
   Cloth cloth(meshV, meshF, 1.0f);
+
+  // Read the mesh for the rigid plane
+  //MatrixXd rigidMeshV;
+  //MatrixXi rigidMeshF;
+  //std::string rigidMeshfilename = "rigid_plane.obj";
+  //std::string rigidMeshPath = baseDir + rigidMeshfilename;
+  //igl::readOBJ(rigidMeshPath, rigidMeshV, rigidMeshF);
+
+  // Rotate the rigid mesh
+  //for (int i = 0; i < rigidMeshV.rows(); ++i) {
+  //    double temp = rigidMeshV(i, 2);
+  //    rigidMeshV(i, 2) = rigidMeshV(i, 1);
+  //    rigidMeshV(i, 1) = temp;
+  //}
+  // Translate the rigid plane below cloth plane.
+  //double planeLevel = 0.0;
+  //double minY = std::numeric_limits<double>::min();
+  //for (int i = 0; i < meshV.rows(); ++i) {
+  //    double y = meshV(i, 1);
+
+  //    if (y < minY) {
+  //        minY = y;
+  //        planeLevel = meshV(i, 1);
+  //    }
+  //}
+  //for (int i = 0; i < rigidMeshV.rows(); ++i) {
+  //  rigidMeshV(i, 1) = planeLevel;
+  //}
 
   // Initialize polyscope with some options
   polyscope::view::setUpDir(polyscope::UpDir::ZUp);
@@ -446,6 +481,7 @@ int main() {
 
   // Register the mesh with Polyscope
   polyscope::registerSurfaceMesh("Cloth", meshV, meshF);
+  //polyscope::registerSurfaceMesh("Fake ground", rigidMeshV, rigidMeshF);
 
   Vector3d gravity(0,-9.8,0);
   double dt = 0.01;
