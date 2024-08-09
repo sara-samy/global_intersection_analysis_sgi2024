@@ -199,12 +199,12 @@ public:
   VectorXd grads;
 
   Hash hash;
-  float spacing=0.1;
+  float spacing=0.01;
 
   void initPhysics(const MatrixXi &F);
-  void Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity);
+  void Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity, float groundHeight);
   void solveConstraints(double dt);
-  void solveGroundCollisions();
+  void solveGroundCollisions(float groundHeight);
   void solveCollisions(double dt);
 
 
@@ -238,8 +238,8 @@ Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance): has
 void Cloth::initPhysics(const MatrixXi &F) {
 
 	thickness = 0.01f;
-	stretchingCompliance = 0.01;
-	bendingCompliance = 0.01;
+	stretchingCompliance = 0.0;
+	bendingCompliance = 1.0;
 	handleCollisions = true;
 
   // Compute the edge lengths
@@ -264,7 +264,7 @@ void Cloth::initPhysics(const MatrixXi &F) {
   }
 }
 
-void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
+void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity, float groundHeight=0)
 {
 
 	double dt = frameDt / numSubSteps;
@@ -272,9 +272,9 @@ void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
 
 	
 	if (handleCollisions) {
-		//hash.create(pos);
+		hash.create(pos);
 		double maxTravelDist = maxVelocity * frameDt;
-		//hash.queryAll(pos, maxTravelDist);
+		hash.queryAll(pos, maxTravelDist);
 	}
 	
 	for (int step = 0; step < numSubSteps; step++) 
@@ -298,7 +298,7 @@ void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
 
 		// solve
 
-		solveGroundCollisions();
+		solveGroundCollisions(groundHeight);
 
 		solveConstraints(dt);
 		if (handleCollisions)
@@ -346,21 +346,24 @@ void Cloth::solveConstraints(double dt) {
 		pos.row(id1) -= s * w1 * vec;
 	}
 }
-void Cloth::solveGroundCollisions() {
-	for (int i = 0; i < numParticles; i++) {
+void Cloth::solveGroundCollisions(float groundHeight=0) {
+	for (int i = 0; i < numParticles; i++) 
+	{
 		if (invMass(i) == 0.0)
 			continue;
 
 		// Check the y-coordinate of the particle
 		double y = pos(i, 1);
-		if (y < 0.5 * thickness) {
+		//float ground = -23;
+		float ground = groundHeight;
+		if (y < ground) {
 			// Apply damping
 			double damping = 1.0;
 			Eigen::Vector3d displacement = pos.row(i) - prevPos.row(i);
 			pos.row(i) += -damping * displacement;
 
 			// Ensure the particle stays above the ground plane
-			pos(i, 1) = 0.5 * thickness;
+			pos(i, 1) = ground + thickness;
 		}
 	}
 }
@@ -428,12 +431,13 @@ bool run = false;
 
 int main() {
 
-  std::string baseDir = "../data/";
 
   // Read the mesh of cloth
   MatrixXd meshV; // #V x 3
   MatrixXi meshF; // #F x 3
-  std::string meshfilename = "plane.obj";
+
+  std::string baseDir = "../data/";
+  std::string meshfilename = "cloth.obj";
   std::string meshPath = baseDir + meshfilename;
   igl::readOBJ(meshPath, meshV, meshF);
 
@@ -483,9 +487,13 @@ int main() {
   polyscope::registerSurfaceMesh("Cloth", meshV, meshF);
   //polyscope::registerSurfaceMesh("Fake ground", rigidMeshV, rigidMeshF);
 
-  Vector3d gravity(0,-9.8,0);
+  
+
+  Vector3d gravity(0,-9.8,0); 
   double dt = 0.01;
   int subSteps = 5;
+  float planeHeight = 0;
+  float collisionPlaneOffset = 0;
   auto polyscope_callback = [&]() mutable
   {
       ImGui::PushItemWidth(100);
@@ -501,8 +509,14 @@ int main() {
 	  ImGui::SliderFloat("Stretching compliance", &cloth.stretchingCompliance, 0, 1);
 	  ImGui::SliderFloat("Cloth Thickness", &cloth.thickness, 0, 20, "%.2f");
 	  ImGui::Checkbox("Handle Collisions", &cloth.handleCollisions);
+	  ImGui::SliderFloat("Ground Height", &planeHeight, -20, 20);
+	  ImGui::SliderFloat("Collision Plane Offset", &collisionPlaneOffset, -25, 25);
+	//ImGui::Checkbox("G")
+	  polyscope::options::groundPlaneHeightFactor = polyscope::absoluteValue(planeHeight);
+	  float ad = *polyscope::relativeValue(*polyscope::ScaledValue<float>(collisionPlaneOffset).getValuePtr()).getValuePtr();
 	  if (ImGui::Button("Reset Simulation"))
 	  {
+		  planeHeight = 0;
 		  cloth.pos = cloth.initialVertices;
 		  polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 
@@ -510,12 +524,14 @@ int main() {
 
 	  if (run)
 	  {
-	  	cloth.Simulate(dt, subSteps, gravity);
+	  	cloth.Simulate(dt, subSteps, gravity,-planeHeight-ad);
 		polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 
 	  }
+
 	  ImGui::End();
   };
+  polyscope::view::setUpDir(polyscope::UpDir::YUp);
   polyscope::state::userCallback = polyscope_callback;
 
   // Give control to the polyscope gui
