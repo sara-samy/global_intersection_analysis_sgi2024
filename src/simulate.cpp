@@ -437,7 +437,7 @@ int main() {
   MatrixXi meshF; // #F x 3
 
   std::string baseDir = "../data/";
-  std::string meshfilename = "cloth.obj";
+  std::string meshfilename = "plane.obj";
   std::string meshPath = baseDir + meshfilename;
   igl::readOBJ(meshPath, meshV, meshF);
 
@@ -513,7 +513,6 @@ int main() {
 	  ImGui::SliderFloat("Collision Plane Offset", &collisionPlaneOffset, -25, 25);
 	//ImGui::Checkbox("G")
 	  polyscope::options::groundPlaneHeightFactor = polyscope::absoluteValue(planeHeight);
-	  float ad = *polyscope::relativeValue(*polyscope::ScaledValue<float>(collisionPlaneOffset).getValuePtr()).getValuePtr();
 	  if (ImGui::Button("Reset Simulation"))
 	  {
 		  planeHeight = 0;
@@ -524,7 +523,7 @@ int main() {
 
 	  if (run)
 	  {
-	  	cloth.Simulate(dt, subSteps, gravity,-planeHeight-ad);
+	  	cloth.Simulate(dt, subSteps, gravity,-planeHeight-collisionPlaneOffset);
 		polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 
 	  }
