@@ -462,7 +462,14 @@ int main(int argc, char** argv) {
     createContour(meshV, meshF, meshVc, meshFc, color1, color2);
 
 
+
     //use this color data for , something
+
+    //1 blue
+    // 2 black
+    // 3 white
+
+
 
   
   // Show the GUI

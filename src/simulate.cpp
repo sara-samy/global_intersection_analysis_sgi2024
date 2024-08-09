@@ -506,7 +506,7 @@ int main() {
   //}
 
   // Initialize polyscope with some options
-  polyscope::view::setUpDir(polyscope::UpDir::ZUp);
+  polyscope::view::setUpDir(polyscope::UpDir::YUp);
   polyscope::view::setFrontDir(polyscope::FrontDir::XFront);
   polyscope::init();
 
@@ -514,9 +514,15 @@ int main() {
   polyscope::registerSurfaceMesh("Cloth", meshV, meshF);
   //polyscope::registerSurfaceMesh("Fake ground", rigidMeshV, rigidMeshF);
 
-  
 
 
+
+
+
+
+
+
+  /////////////////////////////////////////////SIMULATION
   Vector3d gravity(0,-9.8,0); 
   double dt = 0.01;
   int subSteps = 5;
@@ -548,22 +554,29 @@ int main() {
 		  polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 
 	  }
-	if(ImGui::Button("Fix point"))
-	{
-		
-	}
-
 	  if (run)
 	  {
+
+		  //ADD STEP TO DETECT COLLISIONS HERE
+
 	  	cloth.Simulate(dt, subSteps, gravity,-planeHeight-collisionPlaneOffset);
+
+		
+
+
+
+
+
+
+
+
 		polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 	  }
 
 	  ImGui::End();
   };
-  polyscope::view::setUpDir(polyscope::UpDir::YUp);
   polyscope::state::userCallback = polyscope_callback;
-
+  ////////////////////////////////////////////
 
   // Give control to the polyscope gui
   polyscope::show();
