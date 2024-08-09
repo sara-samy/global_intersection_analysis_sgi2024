@@ -431,7 +431,8 @@ Eigen::Vector3d getAttractiveForceDirection(Eigen::MatrixXd meshV, Eigen::Matrix
             colorCount++;
         }
     }
-    avg1 /= colorCount;
+    if (colorCount == 0)avg1.setZero();
+    else avg1 /= colorCount;
 
 
     Eigen::Vector3d avg2 = { 0,0,0 };
@@ -444,7 +445,10 @@ Eigen::Vector3d getAttractiveForceDirection(Eigen::MatrixXd meshV, Eigen::Matrix
             colorCount++;
         }
     }
-    avg2 /= colorCount;
+    if (colorCount == 0)avg2.setZero();
+    else avg2 /= colorCount;
+
+    
 
     Eigen::MatrixXd vn(2, 3);
     vn.row(0) = avg1;
@@ -494,7 +498,7 @@ int main(int argc, char** argv) {
     }
 
     meshV.rowwise() +=
-        Eigen::Vector3d(0.0, 0.5, 0.7)
+        Eigen::Vector3d(0.0, 0.5, 5.7)
         .transpose(); //+ Eigen::Vector3d(-1, -1, 0).transpose();
 
 
@@ -509,11 +513,12 @@ int main(int argc, char** argv) {
     Eigen::VectorXi color1(meshV.rows());
     Eigen::VectorXi color2(meshVc.rows());
 
-    getAttractiveForceDirection(meshV, meshF, meshVc, meshFc, color1, color2);
+    Eigen::Vector3d forceDir= getAttractiveForceDirection(meshV, meshF, meshVc, meshFc, color1, color2);
     //1 blue
     // 2 black
     // 3 white
 
+    std::cout << forceDir;
 
 
   
