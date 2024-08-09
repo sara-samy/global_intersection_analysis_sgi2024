@@ -412,6 +412,53 @@ void createContour(Eigen::MatrixXd meshV, Eigen::MatrixXi meshF, Eigen::MatrixXd
 
 }
 
+Eigen::Vector3d getAttractiveForceDirection(Eigen::MatrixXd meshV, Eigen::MatrixXi meshF, Eigen::MatrixXd meshVc, Eigen::MatrixXi meshFc, Eigen::VectorXi color1, Eigen::VectorXi color2)
+{
+    
+
+    createContour(meshV, meshF, meshVc, meshFc, color1, color2);
+
+
+
+    //using both positions, find attractive force direction
+    Eigen::Vector3d avg1 = { 0,0,0 };
+    int colorCount = 0;
+    for (int i = 0; i < meshV.rows(); i++)
+    {
+        if (color1(i) == 2)//we use value 2 for color for mesh 1 for now
+        {
+            avg1 += meshV.row(i);
+            colorCount++;
+        }
+    }
+    avg1 /= colorCount;
+
+
+    Eigen::Vector3d avg2 = { 0,0,0 };
+    colorCount = 0;
+    for (int i = 0; i < meshVc.rows(); i++)
+    {
+        if (color2(i) == 3)//we use value 2 for color for mesh 1 for now
+        {
+            avg2 += meshVc.row(i);
+            colorCount++;
+        }
+    }
+    avg2 /= colorCount;
+
+    Eigen::MatrixXd vn(2, 3);
+    vn.row(0) = avg1;
+    vn.row(1) = avg2;
+
+
+
+    polyscope::registerPointCloud("averages", vn);
+
+    return avg2 - avg1;
+}
+
+
+
 
 
 int main(int argc, char** argv) {
@@ -456,15 +503,13 @@ int main(int argc, char** argv) {
 
     polyscope::registerSurfaceMesh("input2", meshVc, meshFc);
 
+    
+
+    //use this color data for , something
     Eigen::VectorXi color1(meshV.rows());
     Eigen::VectorXi color2(meshVc.rows());
 
-    createContour(meshV, meshF, meshVc, meshFc, color1, color2);
-
-
-
-    //use this color data for , something
-
+    getAttractiveForceDirection(meshV, meshF, meshVc, meshFc, color1, color2);
     //1 blue
     // 2 black
     // 3 white
