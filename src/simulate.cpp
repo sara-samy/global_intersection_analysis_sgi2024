@@ -13,6 +13,7 @@
 using Eigen::MatrixXd;
 using Eigen::MatrixXi;
 using Eigen::VectorXd;
+using Eigen::Vector3d;
 using Eigen::VectorXi;
 
 #include <Eigen/Core>
@@ -151,6 +152,23 @@ private:
 	std::vector<int> adjIds;
 };
 
+
+class RigidObject {
+public:
+    int numParticles;
+    MatrixXd pos;
+
+    VectorXd invMass;
+
+    RigidObject(const MatrixXd &V) {
+        numParticles = V.rows();
+        pos = V;
+
+        // Set inverse masses of particles to 0
+        invMass = VectorXd::Zero(numParticles);
+    }
+};
+
 class Cloth {
 public:
   int numParticles;
@@ -196,7 +214,7 @@ public:
 Cloth::Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance): hash(spacing,V.rows())
 {
 
-	numParticles = V.rows();
+  numParticles = V.rows();
   numTris = F.rows();
   pos = V;
   prevPos = pos;
@@ -244,9 +262,6 @@ void Cloth::initPhysics(const MatrixXi &F) {
       invMass(vertex_index) += 1.0 / vertexArea;
     }
   }
-  std::cout << "invMass has size " << invMass.rows() << " x " << invMass.cols()
-            << std::endl;
-            
 }
 
 void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity)
@@ -409,30 +424,17 @@ void Cloth::solveCollisions(double dt) {
 
 
 
-void RunSimulation() { ; }
 bool run = false;
-void CallbackFunction() {
 
-  ImGui::PushItemWidth(100);
-
-  if (ImGui::Button("Run simulation")) {
-    RunSimulation();
-  }
-
-  ImGui::SameLine();
-  ImGui::PopItemWidth();
-}
-
-int main(int argc, char **argv) {
-
-  MatrixXd meshV; // #V x 3
-  MatrixXi meshF; // #F x 3
+int main() {
 
   std::string baseDir = "../data/";
+
+  // Read the mesh of cloth
+  MatrixXd meshV; // #V x 3
+  MatrixXi meshF; // #F x 3
   std::string meshfilename = "plane.obj";
   std::string meshPath = baseDir + meshfilename;
-
-  // Read the mesh
   igl::readOBJ(meshPath, meshV, meshF);
 
   Cloth cloth(meshV, meshF, 1.0f);
@@ -445,14 +447,13 @@ int main(int argc, char **argv) {
   // Register the mesh with Polyscope
   polyscope::registerSurfaceMesh("Cloth", meshV, meshF);
 
-  // Specify the callback
-  //polyscope::state::userCallback = CallbackFunction;
-
-  Eigen::Vector3d gravity(0,-9.8,0);
+  Vector3d gravity(0,-9.8,0);
   double dt = 0.01;
   int subSteps = 5;
   auto polyscope_callback = [&]() mutable
   {
+      ImGui::PushItemWidth(100);
+
 	  ImGui::Begin("Simulator");
 	  if (ImGui::Button(run ? "Stop simulation" : "Run simulation")) {
 		  run = !run;
