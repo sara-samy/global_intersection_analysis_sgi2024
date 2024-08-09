@@ -204,8 +204,8 @@ public:
   void initPhysics(const MatrixXi &F);
   void Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity);
   void solveConstraints(double dt);
-  void Cloth::solveGroundCollisions();
-  void Cloth::solveCollisions(double dt);
+  void solveGroundCollisions();
+  void solveCollisions(double dt);
 
 
   Cloth(const MatrixXd &V, const MatrixXi &F, float bendingCompliance);
