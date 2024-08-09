@@ -10,6 +10,7 @@
 #include "ipc/broad_phase/bvh.hpp"
 #include "ipc/distance/edge_edge.hpp"
 #include "ipc/distance/point_edge.hpp"
+#include "polyscope/curve_network.h"
 #include "polyscope/point_cloud.h"
 
 #include "polyscope/polyscope.h"
@@ -278,7 +279,9 @@ void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi
 
     if (firstFloodVertex == 0) color(0) = color1;
     floodVertex(firstFloodVertex, meshV, meshE, contourIntersectingEdgesIDs, color, color1, color2);
-    polyscope::getSurfaceMesh(polyscopeName)->addVertexScalarQuantity("coloring", color);
+    polyscope::getSurfaceMesh(polyscopeName)->removeQuantity("coloring");
+	polyscope::getSurfaceMesh(polyscopeName)->addVertexScalarQuantity("coloring", color);
+
 
 
 
@@ -405,8 +408,8 @@ void createContour(Eigen::MatrixXd meshV, Eigen::MatrixXi meshF, Eigen::MatrixXd
 
 
 
-        //if (contourEdges.rows() > 0)
-          //  polyscope::registerCurveNetwork("contour", intersectingVertices, contourEdges);
+        if (contourEdges.rows() > 0)
+            polyscope::registerCurveNetwork("contour", intersectingVertices, contourEdges);
 
     }
 
@@ -450,12 +453,22 @@ Eigen::Vector3d getAttractiveForceDirection(Eigen::MatrixXd meshV, Eigen::Matrix
     if (colorCount == 0)avg2.setZero();
     else avg2 /= colorCount;
 
-
-
     Eigen::MatrixXd vn(2, 3);
     vn.row(0) = avg1;
     vn.row(1) = avg2;
 
+
+    //check force direction (forward or reverse)
+    
+    for (int i = 0; i < color1.rows(); i++)
+    {
+        if(color1(i)==2)
+        {
+	        //if(meshV.row(i)-)
+        }
+    }
+
+    
 
 
     polyscope::registerPointCloud("averages", vn);
@@ -642,6 +655,8 @@ public:
 
   int topLeftCorner = -1;
   int topRightCorner = -1;
+  int lowerRightCorner = -1;
+  int lowerLeftCorner = -1;
 
   // will store gradient of constraint functions later.
   VectorXd grads;
@@ -718,21 +733,38 @@ void Cloth::initPhysics(const MatrixXi &F) {
 
   // Finding the top corners
   double maxY = initialVertices.col(1).maxCoeff();
+  double minY = initialVertices.col(1).minCoeff();
 
   for (int i = 0; i < initialVertices.rows(); ++i) {
 
-	  if (initialVertices(i, 1) == maxY) {
-		  if (topLeftCorner == -1 || initialVertices(i, 0) < initialVertices(topLeftCorner, 0)) {
-			  topLeftCorner = i;
+	  if (abs(maxY - initialVertices(i, 1)) < 0.00001) {
+		  //if (topLeftCorner == -1 || initialVertices(i, 0) < initialVertices(topLeftCorner, 0)) {
+			//  topLeftCorner = i;
 			  invMass(i) = 0;
 
-		  }
-		  if (topRightCorner == -1 || initialVertices(i, 0) > initialVertices(topRightCorner, 0)) {
-			  topRightCorner = i;
-			  invMass(i) = 0;
+		  //}
+		  //if (topRightCorner == -1 || initialVertices(i, 0) > initialVertices(topRightCorner, 0)) {
+			//  topRightCorner = i;
+			  //invMass(i) = 0;
 
-		  }
+		  //}
+          
 	  }
+    /*
+    if(initialVertices(i,1)==minY)
+    {
+        if (lowerLeftCorner == -1 || initialVertices(i, 0) < initialVertices(lowerLeftCorner, 0)) {
+            lowerLeftCorner = i;
+            invMass(i) = 0;
+
+        }
+        if (lowerRightCorner == -1 || initialVertices(i, 0) > initialVertices(lowerRightCorner, 0)) {
+            lowerRightCorner = i;
+            invMass(i) = 0;
+
+        }
+    }*/
+    
   }
 
 
@@ -925,7 +957,7 @@ int main() {
   MatrixXi meshFb; // #F x 3
 
   std::string baseDir = "../data/";
-  std::string meshfilename1 = "plane.obj";
+  std::string meshfilename1 = "high_res_plane.obj";
   std::string meshfilename2 = "sphere3.obj";
 
 
@@ -1036,6 +1068,13 @@ int main() {
 		  polyscope::getSurfaceMesh("Cloth")->updateVertexPositions(cloth.pos);
 
 	  }
+      if(ImGui::Button("Recalculate Contour"))
+    {
+        forceDir = getAttractiveForceDirection(cloth.pos, meshF, meshVb, meshFb, color1, color2).normalized();
+        cloth.coloredVertices = color1;
+        
+        cloth.attractiveForceDir = forceDir;
+      }
 	  if (run)
 	  {
 
@@ -1043,10 +1082,7 @@ int main() {
 		  
 		  //get attractive forces from both given meshes
 
-
-          forceDir = getAttractiveForceDirection(meshV, meshF, meshVb, meshFb, color1, color2).normalized();
-          cloth.coloredVertices = color1;
-          cloth.attractiveForceDir = forceDir;
+          
 
 	  	cloth.Simulate(dt, subSteps, gravity, -planeHeight - collisionPlaneOffset);
 
