@@ -141,7 +141,7 @@ public:
 		return adjIds;
 	}
 
-private:
+
 	double spacing;
 	int tableSize;
 	std::vector<int> cellStart;
@@ -294,7 +294,7 @@ void Cloth::Simulate(double frameDt, int numSubSteps, Eigen::Vector3d gravity, f
 {
 
 	double dt = frameDt / numSubSteps;
-	double maxVelocity = 0.2 * thickness / dt;
+	double maxVelocity = thickness / dt;
 
 	
 	if (handleCollisions) {
@@ -394,7 +394,7 @@ void Cloth::solveGroundCollisions(float groundHeight=0) {
 	}
 }
 
-void Cloth::solveCollisions(double dt) {
+void Cloth::solveCollisions(double dt){
 	double thickness2 = thickness * thickness;
 
 	for (int i = 0; i < numParticles; i++) {
@@ -402,11 +402,11 @@ void Cloth::solveCollisions(double dt) {
 			continue;
 
 		int id0 = i;
-		int first = 0;//hash.firstAdjId[i];
-		int last = 0;// hash.firstAdjId[i + 1];
+		int first = hash.firstAdjId[i];
+		int last = hash.firstAdjId[i + 1];
 
 		for (int j = first; j < last; j++) {
-			int id1 = 0;// hash.adjIds[j];
+			int id1 = hash.adjIds[j];
 			if (invMass(id1) == 0.0)
 				continue;
 
@@ -444,7 +444,7 @@ void Cloth::solveCollisions(double dt) {
 			vel1 -= avgVel;
 
 			// Apply corrections 
-			double friction = 0.0;
+			double friction = 0.5;
 			pos.row(id0) += friction * vel0;
 			pos.row(id1) += friction * vel1;
 		}
@@ -463,7 +463,7 @@ int main() {
   MatrixXi meshF; // #F x 3
 
   std::string baseDir = "../data/";
-  std::string meshfilename = "cloth.obj";
+  std::string meshfilename = "high_res_plane.obj";
   std::string meshPath = baseDir + meshfilename;
   igl::readOBJ(meshPath, meshV, meshF);
 
