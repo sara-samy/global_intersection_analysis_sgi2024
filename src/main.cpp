@@ -275,55 +275,13 @@ void colorVertices(Eigen::MatrixXd meshV, Eigen::MatrixXi meshE, Eigen::MatrixXi
 }
 
 
-
-int main(int argc, char** argv) {
-
-    // Read the mesh
-    Eigen::MatrixXd meshV;  // V x 3
-    Eigen::MatrixXd meshVc; // Vx3
-    Eigen::MatrixXi meshF;  // F x 3
-    Eigen::MatrixXi meshFc;
-
-    std::string baseDir = "../data/";
-
-    std::string meshfilename1 = "plane.obj";
-    std::string meshfilename2 = "sphere3.obj";
-
-    // Concatenate the base directory path and the filename
-    std::string mesh1Path = baseDir + meshfilename1;
-    std::string mesh2Path = baseDir + meshfilename2;
-    // Read the first mesh
-    igl::readOBJ(mesh1Path, meshV, meshF);
-
-    // Read the second mesh
-    igl::readOBJ(mesh2Path, meshVc, meshFc);
-
-
-    polyscope::init();
-
-    
-    
-    for (int i = 0; i<meshV.rows(); i++)
-    {
-        meshV.row(i) = meshV.row(i) * 0.05;
-    }
-
-    meshV.rowwise() +=
-        Eigen::Vector3d(0.0, 0.5, 0.7)
-        .transpose(); //+ Eigen::Vector3d(-1, -1, 0).transpose();
-
-
-    // Register the mesh with Polyscope
-    polyscope::registerSurfaceMesh("input1", meshV, meshF);
-
-    polyscope::registerSurfaceMesh("input2", meshVc, meshFc);
-
-
+void createContour(Eigen::MatrixXd meshV, Eigen::MatrixXi meshF, Eigen::MatrixXd meshVc, Eigen::MatrixXi meshFc, Eigen::VectorXi &color1, Eigen::VectorXi& color2)
+{
     Eigen::MatrixXd intersectingVertices;
 
     Eigen::VectorXi intersection(meshF.rows(), 1);
 
-    
+
     // find intersecting triangles
     for (int i = 0; i < meshF.rows(); i++) // faces of surface mesh
     {
@@ -372,7 +330,7 @@ int main(int argc, char** argv) {
             }
         }
     }
-    
+
     // create path
     // using intersecting vertices- find closest point- mark it using a boolean
     Eigen::VectorXi inPath(intersectingVertices.rows(), 1);
@@ -381,84 +339,130 @@ int main(int argc, char** argv) {
     if (intersectingVertices.rows() > 0)
     {
         Eigen::Vector3d currentVertex = intersectingVertices.row(0);
-    Eigen::MatrixXi contourEdges(intersectingVertices.rows(), 2);
+        Eigen::MatrixXi contourEdges(intersectingVertices.rows(), 2);
 
-    inPath(0, 0) = 1;
-    int current = 0;
-    int next = 0;
-    double shortest = 9999;
-    int k = 0;
-    contourEdges(k, 0) = current;
-    while (inPath.minCoeff() == 0) {
-        // get all vertices in triangle
-
-        for (int i = 0; i < intersectingVertices.rows(); i++) {
-            if (i == current || inPath(i, 0) == 1)
-                continue;
-
-            Eigen::Vector3d comparingVertex = intersectingVertices.row(i);
-            double currentDistance = glm::distance(
-                glm::vec3(currentVertex.x(), currentVertex.y(), currentVertex.z()),
-                glm::vec3(comparingVertex.x(), comparingVertex.y(),
-                    comparingVertex.z()));
-
-            if (currentDistance < shortest) {
-                shortest = currentDistance;
-                next = i;
-            }
-        }
-        inPath(next, 0) = 1;
+        inPath(0, 0) = 1;
+        int current = 0;
+        int next = 0;
+        double shortest = 9999;
+        int k = 0;
         contourEdges(k, 0) = current;
-        contourEdges(k, 1) = next;
-        current = next;
-        currentVertex = intersectingVertices.row(current);
-        shortest = 9999;
-        k++;
+        while (inPath.minCoeff() == 0) {
+            // get all vertices in triangle
+
+            for (int i = 0; i < intersectingVertices.rows(); i++) {
+                if (i == current || inPath(i, 0) == 1)
+                    continue;
+
+                Eigen::Vector3d comparingVertex = intersectingVertices.row(i);
+                double currentDistance = glm::distance(
+                    glm::vec3(currentVertex.x(), currentVertex.y(), currentVertex.z()),
+                    glm::vec3(comparingVertex.x(), comparingVertex.y(),
+                        comparingVertex.z()));
+
+                if (currentDistance < shortest) {
+                    shortest = currentDistance;
+                    next = i;
+                }
+            }
+            inPath(next, 0) = 1;
+            contourEdges(k, 0) = current;
+            contourEdges(k, 1) = next;
+            current = next;
+            currentVertex = intersectingVertices.row(current);
+            shortest = 9999;
+            k++;
+        }
+        contourEdges(k, 0) = contourEdges(k - 1, 1);
+        contourEdges(k, 1) = contourEdges(0, 0);
+
+
+        Eigen::MatrixXi meshE;
+        Eigen::MatrixXi meshEc;
+
+
+        igl::edges(meshF, meshE);
+        igl::edges(meshFc, meshEc);
+
+        
+
+        int colorOutsideContour = 1;
+        int colorInsideContour = 2;
+        int colorInsideContour2 = 3;
+
+        colorVertices(meshV, meshE, meshF, "input1", contourEdges, intersectingVertices, color1, colorOutsideContour, colorInsideContour);
+        colorVertices(meshVc, meshEc, meshFc, "input2", contourEdges, intersectingVertices, color2, colorOutsideContour, colorInsideContour2);
+
+
+
+        if (contourEdges.rows() > 0)
+            polyscope::registerCurveNetwork("contour", intersectingVertices, contourEdges);
+
     }
-    contourEdges(k, 0) = contourEdges(k - 1, 1);
-    contourEdges(k, 1) = contourEdges(0, 0);
 
 
-    Eigen::MatrixXi meshE;
-    Eigen::MatrixXi meshEc;
 
 
-    igl::edges(meshF, meshE);
-    igl::edges(meshFc, meshEc);
+
+
+    //if(intersection.rows()>0)
+       //polyscope::getSurfaceMesh("input1")->addFaceScalarQuantity("intersection",intersection);
+    if (intersectingVertices.rows() > 0)
+        polyscope::registerPointCloud("points", intersectingVertices);
+
+}
+
+
+
+int main(int argc, char** argv) {
+
+    // Read the mesh
+    Eigen::MatrixXd meshV;  // V x 3
+    Eigen::MatrixXd meshVc; // Vx3
+    Eigen::MatrixXi meshF;  // F x 3
+    Eigen::MatrixXi meshFc;
+
+    std::string baseDir = "../data/";
+
+    std::string meshfilename1 = "high_res_plane.obj";
+    std::string meshfilename2 = "sphere3.obj";
+
+    // Concatenate the base directory path and the filename
+    std::string mesh1Path = baseDir + meshfilename1;
+    std::string mesh2Path = baseDir + meshfilename2;
+    // Read the first mesh
+    igl::readOBJ(mesh1Path, meshV, meshF);
+
+    // Read the second mesh
+    igl::readOBJ(mesh2Path, meshVc, meshFc);
+
+
+    polyscope::init();
+
+    
+    
+    for (int i = 0; i<meshV.rows(); i++)
+    {
+        meshV.row(i) = meshV.row(i) * 0.05;
+    }
+
+    meshV.rowwise() +=
+        Eigen::Vector3d(0.0, 0.5, 0.7)
+        .transpose(); //+ Eigen::Vector3d(-1, -1, 0).transpose();
+
+
+    // Register the mesh with Polyscope
+    polyscope::registerSurfaceMesh("input1", meshV, meshF);
+
+    polyscope::registerSurfaceMesh("input2", meshVc, meshFc);
 
     Eigen::VectorXi color1(meshV.rows());
     Eigen::VectorXi color2(meshVc.rows());
 
-    int colorOutsideContour = 1;
-    int colorInsideContour = 2;
-    int colorInsideContour2 = 3;
-
-    colorVertices(meshV, meshE, meshF, "input1", contourEdges, intersectingVertices,color1,colorOutsideContour,colorInsideContour);
-    colorVertices(meshVc, meshEc, meshFc, "input2", contourEdges, intersectingVertices,color2,colorOutsideContour,colorInsideContour2);
-
-    
-
-        if(contourEdges.rows()>0)
-		    polyscope::registerCurveNetwork("contour", intersectingVertices, contourEdges);
-        //if(contourIntersectingEdges.rows()>0)
-	    	///polyscope::registerCurveNetwork("intersectingEdges", allVertices,contourIntersectingEdges);
-
-        //if(color.size()>0){}
-
-        //updateColor(color);
-
-	}
-    
-    
-    
+    createContour(meshV, meshF, meshVc, meshFc, color1, color2);
 
 
-  
-  //if(intersection.rows()>0)
-	 //polyscope::getSurfaceMesh("input1")->addFaceScalarQuantity("intersection",intersection);
-  if(intersectingVertices.rows()>0)
-	polyscope::registerPointCloud("points", intersectingVertices);
-
+    //use this color data for , something
 
   
   // Show the GUI
