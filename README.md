@@ -8,3 +8,14 @@ An implementation of Baraff et al.'s "Untangling Cloth" algorithm, Global Inters
 3. Run cmake
 4. This should create a project build for you to run the code yourself depending on your OS with all dependencies.
 
+
+## Screenshots
+
+### Cloth "tangled" in the mesh
+![Screenshot 2024-08-26 185107](https://github.com/user-attachments/assets/4482128d-85e8-46e4-9e28-7e976f94f66b)
+
+### Cloth slowly being resolved to be removed from the mesh 
+![Screenshot 2024-08-26 185040](https://github.com/user-attachments/assets/c9ed0f91-eb8a-4e05-b3e1-377231ba02e9)
+
+### Cloth fully removed from the mesh, based off of the contour of intersection between both meshes
+![Screenshot 2024-08-26 185132](https://github.com/user-attachments/assets/981d88c0-cde6-4087-b8a9-9dad3721f682)
