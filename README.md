@@ -1,6 +1,6 @@
 # global_intersection_analysis_sgi2024
 
-An implementation of Baraff et al.'s "Untangling Cloth" algorithm, Global Intersection Analysis which focuse on resolving the intersection between two meshes which are forced to intersect each other at the beginning of a simulation. 
+An implementation of Baraff et al.'s "Untangling Cloth" algorithm, Global Intersection Analysis which focuse on resolving the intersection between two meshes which are forced to intersect each other at the beginning of a simulation. This was an outcome of a 1 week project by Sara Samy and Sachin Kishan under the mentorship of Zachary Ferguson under the MIT SGI 2024 program.
 
 ## To run
 1. Clone the repository
